@@ -33,9 +33,11 @@ def onAppStart(app):
     app.rows, app.cols= S["rows"], S["cols"]
     app.levels = S["levels"]
     app.board = np.zeros((app.levels*app.tileSize, app.rows*app.tileSize, app.cols*app.tileSize)) 
-    app.drawnTiles = []
-    app.displayFaceArgs=[] # list of polygons arguments to draw
 
+
+
+
+########################TEST#################################
     # TEST : create tileset and draw
     test_tile = tile.Tile("test_tile")
     zero_tile = tile.Tile("zero_tile")
@@ -121,11 +123,11 @@ def onMousePress(app, mouseX, mouseY):
 def redrawAll(app):
     
     
-    drawBackground(app) 
+    drawBoard(app) 
 
     drawTileSet(app)
 
-    drawTileOnGrid(app)
+    # drawTileOnGrid(app)
 
     # compile all tiles , put all cubes into 3d grid
     # draw faces while checking occlusion 
@@ -145,27 +147,6 @@ def redrawAll(app):
 
     ## TODO ##    
     # select tiles > move on iso grid > shadow show
-
-def drawBackground(app):
-    ''' Draw isometric grid on right side, and tile set window on left side'''
-    # # iso grid 
-    drawRect(app.gridWin_l, app.gridWin_t, app.gridWin_w, app.gridWin_h,
-             border='skyBlue', fill=None)
-    grid_cx, grid_cy = app.gridWin_l + app.gridWin_w/2, app.gridWin_t + app.tileDim * (app.levels + 2)
-    # drawIsoGrid(cx, cy, rows, cols, d, b='gray', f=None, label=False, b_w=0.5)
-    drawIsoGrid(grid_cx, grid_cy, app.rows, app.cols, app.tileDim, label=True) # level 0 tile grid
-    drawIsoGrid(grid_cx, grid_cy, app.rows*app.tileSize, app.cols*app.tileSize, app.cubeDim, 
-                b='lightgray', b_w = 0.2) # level 0 cube grid
-    for level in range(1,app.levels+1):
-        drawIsoGrid(grid_cx, grid_cy-app.tileDim*level, app.rows, app.cols, app.tileDim, b_w=0.2, label=False) # level 1~tile grid
-    
-    # # tile set window
-    drawRect(app.tileWin_l, app.tileWin_t, app.tileWin_w, app.tileWin_h,
-             border='darkSeaGreen', fill=None)
-
-    # (temp) display 2d -> 2.5d mapping
-    # drawCartGrid(app.tileWin_l+25, app.tileWin_t+25, app.rows, app.cols, app.tileDim)
-
 
         
 ## Isometric Functions ##
@@ -229,6 +210,7 @@ def drawIsoCube(px, py, w, d, h):
     # drawPolygon(*tt, *tr, *tb, *tl, border='black', borderWidth=0.3, fill=None) # bottom
     drawPolygon(*tl, *bl, *bb, *tb, border='black', borderWidth=0.3, fill='gray') # left front
     drawPolygon(*tb, *tr, *br, *bb, border='white', borderWidth=0.3, fill='black') # right front
+
 
 
 def getCornerPointsIsoRect(ix, iy, w, h):
@@ -314,6 +296,12 @@ def mapToCube(map, ix, iy, d):
         drawIsoCube(t_ix, t_iy, d, d, d)
 
 def drawTileSet(app):
+    ''' Draws tile set on left side of page'''
+    # tile set window
+    drawRect(app.tileWin_l, app.tileWin_t, app.tileWin_w, app.tileWin_h,
+             border='darkSeaGreen', fill=None)
+
+
     tile_margin = 10
     l, t = app.tileWin_l+tile_margin, app.tileWin_t+tile_margin # left top of start drawing
     r, b = app.tileWin_l+app.tileWin_w-tile_margin, app.tileWin_t+app.tileWin_h-tile_margin # right, bottom
@@ -353,46 +341,61 @@ def placeTileOnBoard(app, tile):
     app.board[tile.x:tile.x+tile.size, tile.y:tile.y+tile.size, tile.z:tile.z:tile.size] = tile.map
 
 def drawBoard(app):
-    ''' Draw faces as polgons from app.displayFaceArgs.
-        This reduces the number of shapes we need to draw 
+    ''' Draws isometric grid and tiles placed on board.
+        Draw only those faces from cube on board that are visable from view.
+        (This reduces the number of shapes(faces) we need to draw)
         app.board = np.array (app.levels*app.tileSize, app.rows*app.tileSize, app.cols*app.tileSize)) 
-        level = b_z, row = b_x, col = b_y 
+        indices : levels -> z, rows -> x, cols -> y 
         '''
+
+    # iso grid window border
+    drawRect(app.gridWin_l, app.gridWin_t, app.gridWin_w, app.gridWin_h,
+             border='skyBlue', fill=None)
+    
+    # top pixel coordinates of grid
+    grid_cx, grid_cy = app.gridWin_l + app.gridWin_w/2, app.gridWin_t + app.tileDim * (app.levels + 2)
+    
+    # background iso grid
+    drawIsoGrid(grid_cx, grid_cy, app.rows, app.cols, app.tileDim, label=True) # level 0 tile grid in default lines
+    drawIsoGrid(grid_cx, grid_cy, app.rows*app.tileSize, app.cols*app.tileSize, app.cubeDim, 
+                b='lightgray', b_w = 0.2) # level 0 cube grid in lighter and thinner lines
+    for level in range(1,app.levels+1):
+        drawIsoGrid(grid_cx, grid_cy-app.tileDim*level, app.rows, app.cols, app.tileDim, b_w=0.2, label=False) # level 1~tile grid
+    
     # board size in units of cubes
-    height, width, depth = np.shape(app.board)
+    # height, width, depth = np.shape(app.board)
 
     # go over cubes on board, check if face occluded, draw only when displayed
     cubeInds = np.argwhere(app.board == 1)
     for z,y,x in cubeInds:
-        
         tt, tr, tb, tl, bt, br, bb, bl = getCubeCorners(z,y,x)
-
         if app.board[z+1,y,x] != 1:
-            pass# draw top
+            drawPolygon(*tt, *tr, *tb, *tl, border='black', borderWidth=0.3, fill='white') # draw top    
         if app.board[z,y+1,x] != 1:
-            pass# draw left
+            drawPolygon(*tl, *bl, *bb, *tb, border='black', borderWidth=0.3, fill='gray') # draw left front
         if app.board[z,y,x+1] != 1:
-            pass# draw right
+            drawPolygon(*tb, *tr, *br, *bb, border='white', borderWidth=0.3, fill='black') # draw right front
 
-        # app.displayFaceArgs
-        #drawIsoCube(t_ix, t_iy, d, d, d)
-        tt, tr, tb, tl = getCornerPointsIsoRect(ix, iy-h, w, d)
-        bt, br, bb, bl = getCornerPointsIsoRect(ix, iy, w, d)
-        # Opaque
-        drawPolygon(*tt, *tr, *tb, *tl, border='black', borderWidth=0.3, fill='white') # top
-        drawPolygon(*tl, *bl, *bb, *tb, border='black', borderWidth=0.3, fill='gray') # left front
-        drawPolygon(*tb, *tr, *br, *bb, border='white', borderWidth=0.3, fill='black') # right front
+    # (temp) display 2d -> 2.5d mapping
+    # drawCartGrid(app.tileWin_l+25, app.tileWin_t+25, app.rows, app.cols, app.tileDim)
+
+
 
 def getCubeCorners(z,y,x):
     # get 6 points of cube by
     # level + 1 changes py -> py+h 
     # from caresian rect > get corners of iso rectangles
+    # cube points start from bottom left!
     px, py = boardToPixel(z,y,x)
     tt, tr, tb, tl = getCornerPointsIsoRect(px, py-h, w, d)
     bt, br, bb, bl = getCornerPointsIsoRect(px, py, w, d)
 
 def boardToPixel(z,y,x):
     ''' Given board coordinate, and top point of board grid, return pixel coordinate of top point of cube'''
+
+
+
+
 
 def main():
     runApp(1200, 600)
