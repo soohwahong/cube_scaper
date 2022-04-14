@@ -38,6 +38,11 @@ def onAppStart(app):
     app.grid_ix, app.grid_iy = app.gridWin_l + app.gridWin_w/2, app.gridWin_t + app.tileDim * (app.levels + 2)
     app.grid_cx, app.grid_cy = isoToCart(app.grid_ix, app.grid_iy)
 
+    # user action state
+    app.holdingTile = False
+
+    app.drawnTiles = []
+
 
 
 
@@ -77,12 +82,12 @@ def onAppStart(app):
         [[1,1,1],
          [1,0,0],
          [1,0,0]],
-        [[1,1,1],
-         [0,1,0],
-         [1,1,0]],
-        [[1,1,1],
-         [0,0,1],
-         [0,0,1]]
+        [[0,0,0],
+         [0,0,0],
+         [0,0,0]],
+        [[0,0,0],
+         [0,0,0],
+         [0,0,0]]
     ])
     three_tile_full = np.array([
         [[1,1,1],
@@ -95,10 +100,11 @@ def onAppStart(app):
          [1,1,1],
          [1,1,1]]
     ])
+    
     test_tile.setMap(three_tile)
 
     # test_tileset = [test_tile] * 4 + [zero_tile] * 5
-    test_tileset = [test_tile] * 9
+    test_tileset = [test_tile]
     app.tileSet = test_tileset
 
 
@@ -114,13 +120,19 @@ def onKeyPress(app, key):
         return 42
 
 def onMousePress(app, mouseX, mouseY):
-    # check if legal place
-    # if legal, change location of tile 
+
+    # check if legal place (including adjacency constraints)
+
     ## Test ##
-    # to see max shape size + try drawing on grid
     new_tile = copy.deepcopy(app.tileSet[0]) # is copy valid?
     new_tile.px, new_tile.py = mouseX, mouseY
     app.drawnTiles.append(new_tile)
+
+
+def onMouseMove(app, mouseX, mouseY):
+    if app.holdingTile:
+        pass
+# def isTileLegal(app, )
     
 
 ## Draw
@@ -131,7 +143,7 @@ def redrawAll(app):
 
     drawTileSet(app)
 
-    # drawTileOnGrid(app)
+    drawTileOnGrid(app)
 
     # compile all tiles , put all cubes into 3d grid
     # draw faces while checking occlusion 
@@ -192,7 +204,7 @@ def drawIsoRect(ix, iy, w, h, b='black', f=None, o=100, b_w=0.5):
                 iso_l_x, iso_l_y, border=b ,borderWidth=b_w, opacity=o, 
                 fill=f)
       
-def drawIsoCube(px, py, w, d, h):
+def drawIsoCube(px, py, w, d, h): ###### NO USE
     ''' Given pixel location ix,iy of bottom top point of cube,
         and dimension of cube, draw cube on canvas'''
     # get 6 points of cube by
@@ -207,14 +219,32 @@ def drawIsoCube(px, py, w, d, h):
     # drawPolygon(*tb, *tr, *br, *bb, border='black', borderWidth=0.5, opacity=80) # right front
     # drawPolygon(*tl, *tt, *bt, *bl, border='grey', dashes=(2,4), borderWidth=0.5, fill=None) # left back
     # drawPolygon(*tt, *tr, *br, *bt, border='grey', dashes=(2,4), borderWidth=0.5, fill=None) # right back
-    
-    # print(*tt)
+
     # Opaque
     drawPolygon(*tt, *tr, *tb, *tl, border='black', borderWidth=0.3, fill='white') # top
     # drawPolygon(*tt, *tr, *tb, *tl, border='black', borderWidth=0.3, fill=None) # bottom
     drawPolygon(*tl, *bl, *bb, *tb, border='black', borderWidth=0.3, fill='gray') # left front
     drawPolygon(*tb, *tr, *br, *bb, border='white', borderWidth=0.3, fill='black') # right front
 
+def mapToCube(map, ix, iy, d): ####### NO USE
+    ''' Given map, isometric pixel origin coordinate(top point of level 0), dimension of cube
+        draw cube on non board'''
+    i_w = 2*d
+    i_h = d
+    # take in map of rows*cols*level dimension and draw cubes
+    # how does ix, iy (bottomleft) change?
+    # drawIsoCube(ix, iy, w, d, h)
+    # l >> ix          , iy - l*d
+    # r >> ix - r*i_w/2, iy + r*i_h/2
+    # c >> ix + c*i_w/2, iy + c*i_h/2
+    
+    # Numpy version
+    levels, rows, cols = np.shape(map)
+    cubeInds = np.argwhere(map == 1)
+    for l,r,c in cubeInds:
+        t_ix = ix - r*i_w/2 + c*i_w/2  
+        t_iy = iy - l*d + r*i_h/2 + c*i_h/2
+        drawIsoCube(t_ix, t_iy, d, d, d)
 
 def getCornerPointsIsoRect(ix, iy, w, h):
     ''' Given pixel coordinate of top point of iso rectangle cx, cy
@@ -266,51 +296,43 @@ def drawCartGrid(cx, cy, rows, cols, d):
             drawLabel(f"{r},{c}", cx+r*d +0.5*d, cy+c*d + 0.5*d, size=10, font='arial', 
                       fill="orange", opacity=80)
                       
-## Tile Functions ##
+## Tile Set Functions ##
 def drawTile(app, tile, px, py):
-    '''given Tile object, draw tile according to map'''
-    t_map = tile.map
-    mapToCube(t_map, px, py, app.cubeDim)
+    '''Given Tile object, and origin pixel coordinate(bottom side top point)
+        draw cubes according to tile map
+        Used to draw tile set'''
 
-def mapToCube(map, ix, iy, d):
-    ''' takes in map, start position of map (bottom left pixel coordinate), dimension of cube'''
-    i_w = 2*d
-    i_h = d
-    # take in map of rows*cols*level dimension and draw cubes
-    # how does ix, iy (bottomleft) change?
-    # drawIsoCube(ix, iy, w, d, h)
-    # l >> ix          , iy - l*d
-    # r >> ix - r*i_w/2, iy + r*i_h/2
-    # c >> ix + c*i_w/2, iy + c*i_h/2
-    
-    # # Python version
-    # levels = len(map)
-    # rows = len(map[0])
-    # cols = len(map[0][0])
-    
-    # for l in range(levels):
-    #     for r in range(rows):
-    #         for c in range(cols):
-    #             if map[l][r][c] == 1:
-    #                 t_ix = ix - r*i_w/2 + c*i_w/2
-    #                 t_iy = iy - l*d + r*i_h/2 + c*i_h/2
-    #                 drawIsoCube(t_ix, t_iy, d, d, d)
-    
+    ### integrating mapToCube(tile.map, px, py, app.cubeDim)
+    i_w = 2*app.cubeDim
+    i_h = app.cubeDim
+
     # Numpy version
-    levels, rows, cols = np.shape(map)
-    cubeInds = np.argwhere(map == 1)
+    levels, rows, cols = np.shape(tile.map)
+    cubeInds = np.argwhere(tile.map == 1)
     for l,r,c in cubeInds:
-        t_ix = ix - r*i_w/2 + c*i_w/2  
-        t_iy = iy - l*d + r*i_h/2 + c*i_h/2
-        drawIsoCube(t_ix, t_iy, d, d, d)
+        # print(f'drawing tiles... {l} {r} {c} of tile map')
+        # pixel coordinate of cube origin (bottom top)
+        tx = px - r*i_w/2 + c*i_w/2  
+        ty = py - l*app.cubeDim + r*i_h/2 + c*i_h/2
 
+        ## integrating drawIsoCube(t_ix, t_iy, d, d, d) so that draw less shapes
+        tt, tr, tb, tl = getCornerPointsIsoRect(tx, ty-app.cubeDim, app.cubeDim, app.cubeDim)
+        bt, br, bb, bl = getCornerPointsIsoRect(tx, ty, app.cubeDim, app.cubeDim)
+
+        if l==levels-1 or tile.map[l+1, r, c] != 1:
+            drawPolygon(*tt, *tr, *tb, *tl, border='black', borderWidth=0.3, fill='white') # draw top    
+        if r==rows-1 or tile.map[l, r+1, c] != 1:
+            drawPolygon(*tl, *bl, *bb, *tb, border='black', borderWidth=0.3, fill='gray') # draw left front
+        if c==cols-1 or tile.map[l, r, c+1] != 1:
+            drawPolygon(*tb, *tr, *br, *bb, border='white', borderWidth=0.3, fill='black') # draw right front
+            
 def drawTileSet(app):
     ''' Draws tile set on left side of page'''
     # tile set window
     drawRect(app.tileWin_l, app.tileWin_t, app.tileWin_w, app.tileWin_h,
              border='darkSeaGreen', fill=None)
 
-
+    # region for each tile
     tile_margin = 10
     l, t = app.tileWin_l+tile_margin, app.tileWin_t+tile_margin # left top of start drawing
     r, b = app.tileWin_l+app.tileWin_w-tile_margin, app.tileWin_t+app.tileWin_h-tile_margin # right, bottom
@@ -321,19 +343,43 @@ def drawTileSet(app):
     # m 
     # tile-m-tile-m-tile
     # ...
+
+    # draw each tile
     for i in range(len(app.tileSet)):
+        # region for each tile
         tile = app.tileSet[i]
         row_i = i//3
         col_i = i%3
         px = l + col_i*1.25*ph_w+ph_w/2 # start + column index * (ph_w + 0.25*ph_(margin)) + ph_w/2
         py = t + row_i*1.25*ph_h+ph_h/2
 
+        # set tile object pixel coordinate    
+        tile.px = px
+        tile.py = py
+
+        # draw tile
+        drawTile(app, tile, px, py)
+
+        # draw guide boundary
+        drawTileBound(app, tile)
+
         # place holder region
         drawPolygon(px-0.5*ph_w, py-0.5*ph_h, px+0.5*ph_w, py-0.5*ph_h, 
-                    px+0.5*ph_w, py+0.5*ph_h, px-0.5*ph_w, py+0.5*ph_h, 
+                    px+0.5*ph_w, py+0.5*ph_h, px-0.5*ph_w, py+0.5*ph_h, borderWidth=1,
                     fill=None, border='yellowGreen', dashes=True)
 
-        drawTile(app, tile, px, py)
+def drawTileBound(app, tile, b='cyan', b_w=1, o=80, d=(1,2)):
+    # from caresian rect > get corners of iso rectangles
+    tt, tr, tb, tl = getCornerPointsIsoRect(tile.px, tile.py-app.tileDim, app.tileDim, app.tileDim)
+    bt, br, bb, bl = getCornerPointsIsoRect(tile.px, tile.py, app.tileDim, app.tileDim)
+    # Transparent
+    drawPolygon(*tt, *tr, *tb, *tl, border=b, borderWidth=b_w, fill=None, opacity=o, dashes=d) # top
+    drawPolygon(*tt, *tr, *tb, *tl, border=b, borderWidth=b_w, fill=None, opacity=o, dashes=d) # bottom
+    drawPolygon(*tl, *bl, *bb, *tb, border=b, borderWidth=b_w, fill=None, opacity=o, dashes=d) # left front
+    drawPolygon(*tb, *tr, *br, *bb, border=b, borderWidth=b_w, fill=None, opacity=o, dashes=d) # right front
+    drawPolygon(*tl, *tt, *bt, *bl, border=b, borderWidth=b_w, fill=None, opacity=o, dashes=d) # left back
+    drawPolygon(*tt, *tr, *br, *bt, border=b, borderWidth=b_w, fill=None, opacity=o, dashes=d) # right back
+
         
 # (temp) to test drawing tiles onMousePress
 def drawTileOnGrid(app):
@@ -343,6 +389,7 @@ def drawTileOnGrid(app):
         drawTile(app, tile, tile.px, tile.py)
 
 # TODO: rearrange drawing to draw on board -------------------------------------------------------------
+
 def placeTileOnBoard(app, tile):
     ''' Given the board coordinate of top (in isometric view) cube of tile,
         place tile on board by placing valid cube'''
@@ -377,28 +424,33 @@ def drawBoard(app):
     # go over cubes on board, check if face occluded, draw only when displayed
     cubeInds = np.argwhere(app.board == 1)
     for z,y,x in cubeInds:
-        bt, br, bb, bl, tt, tr, tb, tl = getCubeCorners(z,y,x)
-        if app.board[z+1,y,x] != 1:
+        bt, br, bb, bl, tt, tr, tb, tl = boardToCubeCorners(z,y,x)
+        if z == app.levels or app.board[z+1,y,x] != 1:
             drawPolygon(*tt, *tr, *tb, *tl, border='black', borderWidth=0.3, fill='white') # draw top    
-        if app.board[z,y+1,x] != 1:
+        if y == app.cols or app.board[z,y+1,x] != 1:
             drawPolygon(*tl, *bl, *bb, *tb, border='black', borderWidth=0.3, fill='gray') # draw left front
-        if app.board[z,y,x+1] != 1:
+        if x == app.rows or app.board[z,y,x+1] != 1:
             drawPolygon(*tb, *tr, *br, *bb, border='white', borderWidth=0.3, fill='black') # draw right front
 
     # (temp) display 2d -> 2.5d mapping
     # drawCartGrid(app.tileWin_l+25, app.tileWin_t+25, app.rows, app.cols, app.tileDim)
 
-
-
-def getCubeCorners(z,y,x):
+def boardToCubeCorners(z,y,x):
     ''' Given index z,y,x of cube on board,
         Return pixel coordinates of 6 points of cube.
         '''
     # cube points start from bottom left!
     # z changes in iso == -y in pixel space 
-    
-    bt, br, bb, bl = getCornerPointsIsoRect(app.grid_cx, app.grid_cy, app.tileDim, app.tilDim)
-    tt, tr, tb, tl = getCornerPointsIsoRect(app.grid_cx, app.grid_cy-app.tileDim, app.tileDim, app.tileDim)
+    # one unit of iso tile dim = 2 units cartesian dim
+    i_w = 2*app.tileDim
+    i_h = app.tileDim
+
+    # pixel coordinate of cube origin (bottom side top point)
+    px = app.grid_cx - x*i_w/2 + c*i_w/2
+    py = app.grid_cy - y*i_h + x*i_h/2 + y*i_h/2 
+
+    bt, br, bb, bl = getCornerPointsIsoRect(px, py, app.tileDim, app.tileDim)
+    tt, tr, tb, tl = getCornerPointsIsoRect(px, py-app.tileDim, app.tileDim, app.tileDim)
 
     return bt, br, bb, bl, tt, tr, tb, tl
 
