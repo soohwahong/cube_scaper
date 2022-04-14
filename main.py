@@ -36,7 +36,6 @@ def onAppStart(app):
 
     # top pixel coordinate of background grid at level 0
     app.grid_ix, app.grid_iy = app.gridWin_l + app.gridWin_w/2, app.gridWin_t + app.tileDim * (app.levels + 2)
-    app.grid_cx, app.grid_cy = isoToCart(app.grid_ix, app.grid_iy)
 
     # user action state
     app.holdingTile = False
@@ -124,9 +123,16 @@ def onMousePress(app, mouseX, mouseY):
     # check if legal place (including adjacency constraints)
 
     ## Test ##
-    new_tile = copy.deepcopy(app.tileSet[0]) # is copy valid?
-    new_tile.px, new_tile.py = mouseX, mouseY
-    app.drawnTiles.append(new_tile)
+    # # draw tile on iso board at mouse location
+    # new_tile = copy.deepcopy(app.tileSet[0]) # is copy valid?
+    # new_tile.px, new_tile.py = mouseX, mouseY
+    # app.drawnTiles.append(new_tile)
+
+    # add tile on board at click and draw
+    new_tile = copy.deepcopy(app.tileSet[0])
+    placeTileOnBoard(app, new_tile, 0, 0, 0)
+    # print(f'board is \n{app.board}')
+    
 
 
 def onMouseMove(app, mouseX, mouseY):
@@ -143,7 +149,7 @@ def redrawAll(app):
 
     drawTileSet(app)
 
-    drawTileOnGrid(app)
+    # drawTileOnGrid(app)
 
     # compile all tiles , put all cubes into 3d grid
     # draw faces while checking occlusion 
@@ -176,33 +182,6 @@ def isoToCart(ix, iy):
     cx = (ix + 2*iy)/2
     cy = (-ix + 2*iy)/2
     return int(cx), int(cy)
-
-def drawIsoRect(ix, iy, w, h, b='black', f=None, o=100, b_w=0.5):
-    ''' Given '''
-    # ix, iy is top point of isometric rect
-    cx, cy = isoToCart(ix, iy)
-    
-    # # points in clockwise order
-    # 1 2
-    # 4 3
-    #   1
-    # 4   2
-    #   3
-    tl_x, tl_y = cx  , cy
-    tr_x, tr_y = cx+w, cy
-    br_x, br_y = cx+w, cy+h
-    bl_x, bl_y = cx  , cy+h
-    
-    
-    iso_t_x, iso_t_y = cartToIso(tl_x, tl_y)
-    iso_r_x, iso_r_y = cartToIso(tr_x, tr_y)
-    iso_b_x, iso_b_y = cartToIso(br_x, br_y)
-    iso_l_x, iso_l_y = cartToIso(bl_x, bl_y)
-    
-    # drawRect(tl_x, tl_y, w, h, opacity=20)
-    drawPolygon(iso_t_x, iso_t_y, iso_r_x, iso_r_y, iso_b_x, iso_b_y, 
-                iso_l_x, iso_l_y, border=b ,borderWidth=b_w, opacity=o, 
-                fill=f)
       
 def drawIsoCube(px, py, w, d, h): ###### NO USE
     ''' Given pixel location ix,iy of bottom top point of cube,
@@ -273,7 +252,34 @@ def getCornerPointsIsoRect(ix, iy, w, h):
     
     # drawRect(tl_x, tl_y, w, h, opacity=20)
     return [(iso_t_x, iso_t_y), (iso_r_x, iso_r_y), (iso_b_x, iso_b_y), (iso_l_x, iso_l_y)]
+
+def drawIsoRect(ix, iy, w, h, b='black', f=None, o=100, b_w=0.5):
+    ''' Given '''
+    # ix, iy is top point of isometric rect
+    cx, cy = isoToCart(ix, iy)
     
+    # # points in clockwise order
+    # 1 2
+    # 4 3
+    #   1
+    # 4   2
+    #   3
+    tl_x, tl_y = cx  , cy
+    tr_x, tr_y = cx+w, cy
+    br_x, br_y = cx+w, cy+h
+    bl_x, bl_y = cx  , cy+h
+    
+    
+    iso_t_x, iso_t_y = cartToIso(tl_x, tl_y)
+    iso_r_x, iso_r_y = cartToIso(tr_x, tr_y)
+    iso_b_x, iso_b_y = cartToIso(br_x, br_y)
+    iso_l_x, iso_l_y = cartToIso(bl_x, bl_y)
+    
+    # drawRect(tl_x, tl_y, w, h, opacity=20)
+    drawPolygon(iso_t_x, iso_t_y, iso_r_x, iso_r_y, iso_b_x, iso_b_y, 
+                iso_l_x, iso_l_y, border=b ,borderWidth=b_w, opacity=o, 
+                fill=f)
+
 def drawIsoGrid(cx, cy, rows, cols, d, b='gray', f=None, label=False, b_w=0.5):
     ''' Given top pixel coordinate cx, cy of isometric grid
         ,number of rows and columns, and cell dimension, draw isometric grid '''
@@ -289,14 +295,14 @@ def drawIsoGrid(cx, cy, rows, cols, d, b='gray', f=None, label=False, b_w=0.5):
                 drawLabel(f"{r},{c}", x, y+0.5* i_h, size=10, font='arial', 
                         fill="blue", opacity=80)    
 
-def drawCartGrid(cx, cy, rows, cols, d):
+def drawCartGrid(cx, cy, rows, cols, d): ####### NO USE
     for r in range(rows):
         for c in range(cols):
             drawRect(cx+r*d,cy+c*d, d, d, border='black', borderWidth=1, fill=None, opacity=40)
             drawLabel(f"{r},{c}", cx+r*d +0.5*d, cy+c*d + 0.5*d, size=10, font='arial', 
                       fill="orange", opacity=80)
                       
-## Tile Set Functions ##
+## Tile Functions ##
 def drawTile(app, tile, px, py):
     '''Given Tile object, and origin pixel coordinate(bottom side top point)
         draw cubes according to tile map
@@ -380,21 +386,16 @@ def drawTileBound(app, tile, b='cyan', b_w=1, o=80, d=(1,2)):
     drawPolygon(*tl, *tt, *bt, *bl, border=b, borderWidth=b_w, fill=None, opacity=o, dashes=d) # left back
     drawPolygon(*tt, *tr, *br, *bt, border=b, borderWidth=b_w, fill=None, opacity=o, dashes=d) # right back
 
-        
-# (temp) to test drawing tiles onMousePress
-def drawTileOnGrid(app):
-    for tile in app.drawnTiles:
-        # add tile to board
-        # check for occlusion 
-        drawTile(app, tile, tile.px, tile.py)
-
 # TODO: rearrange drawing to draw on board -------------------------------------------------------------
 
-def placeTileOnBoard(app, tile):
-    ''' Given the board coordinate of top (in isometric view) cube of tile,
-        place tile on board by placing valid cube'''
+def placeTileOnBoard(app, tile, z, y, x):
+    ''' Given the board coordinate of bottom side top cube (in isometric view) of tile,
+        place tile on board by placing valid cube
+        Need to assign tile.x, tile.y, tile.z before placing on board!'''
     # replace part of board map with tile map
-    app.board[tile.x:tile.x+tile.size, tile.y:tile.y+tile.size, tile.z:tile.z:tile.size] = tile.map
+    # print(f'board shape is {app.board.shape} and tile shape is {tile.map.shape}')
+    app.board[x:x+tile.size, y:y+tile.size, z:z+tile.size] = tile.map
+    tile.x, tile.y, tile.z = x, y, z
 
 def drawBoard(app):
     ''' Draws isometric grid and tiles placed on board.
@@ -419,41 +420,24 @@ def drawBoard(app):
         drawIsoGrid(app.grid_ix, app.grid_iy-app.tileDim*level, app.rows, app.cols, app.tileDim, b_w=0.2, label=False) # level 1~tile grid
     
     # board size in units of cubes
-    # height, width, depth = np.shape(app.board)
+    levels, rows, cols = app.levels, app.rows, app.cols
+    i_w = 2*app.cubeDim
+    i_h = app.cubeDim
 
     # go over cubes on board, check if face occluded, draw only when displayed
     cubeInds = np.argwhere(app.board == 1)
-    for z,y,x in cubeInds:
-        bt, br, bb, bl, tt, tr, tb, tl = boardToCubeCorners(z,y,x)
-        if z == app.levels or app.board[z+1,y,x] != 1:
+    for l,r,c in cubeInds:
+        cx = app.grid_ix - r*i_w/2 + c*i_w/2 
+        cy = app.grid_iy - l*app.cubeDim + r*i_h/2 + c*i_h/2
+        bt, br, bb, bl = getCornerPointsIsoRect(cx, cy, app.cubeDim, app.cubeDim)
+        tt, tr, tb, tl = getCornerPointsIsoRect(cx, cy-app.cubeDim, app.cubeDim, app.cubeDim)
+
+        if l==levels-1 or app.board[l+1, r, c] != 1:
             drawPolygon(*tt, *tr, *tb, *tl, border='black', borderWidth=0.3, fill='white') # draw top    
-        if y == app.cols or app.board[z,y+1,x] != 1:
+        if r==rows-1 or app.board[l, r+1, c] != 1:
             drawPolygon(*tl, *bl, *bb, *tb, border='black', borderWidth=0.3, fill='gray') # draw left front
-        if x == app.rows or app.board[z,y,x+1] != 1:
+        if c==cols-1 or app.board[l, r, c+1] != 1:
             drawPolygon(*tb, *tr, *br, *bb, border='white', borderWidth=0.3, fill='black') # draw right front
-
-    # (temp) display 2d -> 2.5d mapping
-    # drawCartGrid(app.tileWin_l+25, app.tileWin_t+25, app.rows, app.cols, app.tileDim)
-
-def boardToCubeCorners(z,y,x):
-    ''' Given index z,y,x of cube on board,
-        Return pixel coordinates of 6 points of cube.
-        '''
-    # cube points start from bottom left!
-    # z changes in iso == -y in pixel space 
-    # one unit of iso tile dim = 2 units cartesian dim
-    i_w = 2*app.tileDim
-    i_h = app.tileDim
-
-    # pixel coordinate of cube origin (bottom side top point)
-    px = app.grid_cx - x*i_w/2 + c*i_w/2
-    py = app.grid_cy - y*i_h + x*i_h/2 + y*i_h/2 
-
-    bt, br, bb, bl = getCornerPointsIsoRect(px, py, app.tileDim, app.tileDim)
-    tt, tr, tb, tl = getCornerPointsIsoRect(px, py-app.tileDim, app.tileDim, app.tileDim)
-
-    return bt, br, bb, bl, tt, tr, tb, tl
-
 
 
 
