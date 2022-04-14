@@ -12,9 +12,9 @@ def onAppStart(app):
     app.margin = S["margin"]
 
     # Tile & Cube
-    app.tileSize = S["tileSize"]
-    app.cubeDim = S["cubeDim"]
-    app.tileDim = S["tileDim"]
+    app.tileSize = S["tileSize"] # num of cubes on one side of tile
+    app.cubeDim = S["cubeDim"]   # pixel dim of one side of cube 
+    app.tileDim = app.tileSize * app.cubeDim   # pixel dim of one side of tile
     app.tileSet = None 
 
     # Tile set window (width, height, left, top)
@@ -32,7 +32,11 @@ def onAppStart(app):
     # Iso board
     app.rows, app.cols= S["rows"], S["cols"]
     app.levels = S["levels"]
-    app.board = np.zeros((app.levels*app.tileSize, app.rows*app.tileSize, app.cols*app.tileSize)) 
+    app.board = np.zeros((app.levels*app.tileSize, app.rows*app.tileSize, app.cols*app.tileSize))
+
+    # top pixel coordinate of background grid at level 0
+    app.grid_ix, app.grid_iy = app.gridWin_l + app.gridWin_w/2, app.gridWin_t + app.tileDim * (app.levels + 2)
+    app.grid_cx, app.grid_cy = isoToCart(app.grid_ix, app.grid_iy)
 
 
 
@@ -162,8 +166,8 @@ def isoToCart(ix, iy):
     return int(cx), int(cy)
 
 def drawIsoRect(ix, iy, w, h, b='black', f=None, o=100, b_w=0.5):
-    # ix, iy is top left point of cartesian rect
-    # equates to top point of isometric rect
+    ''' Given '''
+    # ix, iy is top point of isometric rect
     cx, cy = isoToCart(ix, iy)
     
     # # points in clockwise order
@@ -212,17 +216,21 @@ def drawIsoCube(px, py, w, d, h):
     drawPolygon(*tb, *tr, *br, *bb, border='white', borderWidth=0.3, fill='black') # right front
 
 
-
 def getCornerPointsIsoRect(ix, iy, w, h):
-    # cx , cy is start of index 0,0 at top of grid 
-    cx, cy = isoToCart(ix, iy)
-    
+    ''' Given pixel coordinate of top point of iso rectangle cx, cy
+        and width and height of cartesian rectangle
+        return coordinates of four corners of isometric rectangle
+        in order of top, right, bottom, left '''
     # # points in clockwise order
     # 1 2
     # 4 3
     #   1
     # 4   2
     #   3
+
+    # cx , cy is top left corner of cartesian rectangle
+    cx, cy = isoToCart(ix, iy)
+    
     tl_x, tl_y = cx  , cy
     tr_x, tr_y = cx+w, cy
     br_x, br_y = cx+w, cy+h
@@ -237,7 +245,8 @@ def getCornerPointsIsoRect(ix, iy, w, h):
     return [(iso_t_x, iso_t_y), (iso_r_x, iso_r_y), (iso_b_x, iso_b_y), (iso_l_x, iso_l_y)]
     
 def drawIsoGrid(cx, cy, rows, cols, d, b='gray', f=None, label=False, b_w=0.5):
-    ''' Given top point cx, cy and number of rows and columns, draw isometric grid '''
+    ''' Given top pixel coordinate cx, cy of isometric grid
+        ,number of rows and columns, and cell dimension, draw isometric grid '''
     i_w = 2*d
     i_h = d
     for r in range(rows):
@@ -353,14 +362,14 @@ def drawBoard(app):
              border='skyBlue', fill=None)
     
     # top pixel coordinates of grid
-    grid_cx, grid_cy = app.gridWin_l + app.gridWin_w/2, app.gridWin_t + app.tileDim * (app.levels + 2)
+    # grid_ix, grid_iy = app.gridWin_l + app.gridWin_w/2, app.gridWin_t + app.tileDim * (app.levels + 2)
     
     # background iso grid
-    drawIsoGrid(grid_cx, grid_cy, app.rows, app.cols, app.tileDim, label=True) # level 0 tile grid in default lines
-    drawIsoGrid(grid_cx, grid_cy, app.rows*app.tileSize, app.cols*app.tileSize, app.cubeDim, 
+    drawIsoGrid(app.grid_ix, app.grid_iy, app.rows, app.cols, app.tileDim, label=True) # level 0 tile grid in default lines
+    drawIsoGrid(app.grid_ix, app.grid_iy, app.rows*app.tileSize, app.cols*app.tileSize, app.cubeDim, 
                 b='lightgray', b_w = 0.2) # level 0 cube grid in lighter and thinner lines
     for level in range(1,app.levels+1):
-        drawIsoGrid(grid_cx, grid_cy-app.tileDim*level, app.rows, app.cols, app.tileDim, b_w=0.2, label=False) # level 1~tile grid
+        drawIsoGrid(app.grid_ix, app.grid_iy-app.tileDim*level, app.rows, app.cols, app.tileDim, b_w=0.2, label=False) # level 1~tile grid
     
     # board size in units of cubes
     # height, width, depth = np.shape(app.board)
@@ -368,7 +377,7 @@ def drawBoard(app):
     # go over cubes on board, check if face occluded, draw only when displayed
     cubeInds = np.argwhere(app.board == 1)
     for z,y,x in cubeInds:
-        tt, tr, tb, tl, bt, br, bb, bl = getCubeCorners(z,y,x)
+        bt, br, bb, bl, tt, tr, tb, tl = getCubeCorners(z,y,x)
         if app.board[z+1,y,x] != 1:
             drawPolygon(*tt, *tr, *tb, *tl, border='black', borderWidth=0.3, fill='white') # draw top    
         if app.board[z,y+1,x] != 1:
@@ -382,16 +391,17 @@ def drawBoard(app):
 
 
 def getCubeCorners(z,y,x):
-    # get 6 points of cube by
-    # level + 1 changes py -> py+h 
-    # from caresian rect > get corners of iso rectangles
+    ''' Given index z,y,x of cube on board,
+        Return pixel coordinates of 6 points of cube.
+        '''
     # cube points start from bottom left!
-    px, py = boardToPixel(z,y,x)
-    tt, tr, tb, tl = getCornerPointsIsoRect(px, py-h, w, d)
-    bt, br, bb, bl = getCornerPointsIsoRect(px, py, w, d)
+    # z changes in iso == -y in pixel space 
+    
+    bt, br, bb, bl = getCornerPointsIsoRect(app.grid_cx, app.grid_cy, app.tileDim, app.tilDim)
+    tt, tr, tb, tl = getCornerPointsIsoRect(app.grid_cx, app.grid_cy-app.tileDim, app.tileDim, app.tileDim)
 
-def boardToPixel(z,y,x):
-    ''' Given board coordinate, and top point of board grid, return pixel coordinate of top point of cube'''
+    return bt, br, bb, bl, tt, tr, tb, tl
+
 
 
 
