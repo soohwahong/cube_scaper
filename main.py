@@ -39,6 +39,7 @@ def onAppStart(app):
 
     # user action state
     app.holdingTile = False
+    app.currentTile = None
 
     app.drawnTiles = []
 
@@ -123,21 +124,29 @@ def onMousePress(app, mouseX, mouseY):
     # check if legal place (including adjacency constraints)
 
     ## Test ##
-    # # draw tile on iso board at mouse location
-    # new_tile = copy.deepcopy(app.tileSet[0]) # is copy valid?
-    # new_tile.px, new_tile.py = mouseX, mouseY
-    # app.drawnTiles.append(new_tile)
-
-    # add tile on board at click and draw
-    new_tile = copy.deepcopy(app.tileSet[0])
-    placeTileOnBoard(app, new_tile, 0, 0, 0)
-    # print(f'board is \n{app.board}')
+    if isTileSetRegion(app, mouseX, mouseY) != None:
+        select = isTileSetRegion(app, mouseX, mouseY)
+        app.holdingTile = True
+        app.currentTile = select
     
+
+def isTileSetRegion(app, mouseX, mouseY):
+    ''' Checks if click is on any tile in tile set window,
+        and if it is, returns copy of clicked tile,
+        otherwise return None'''
+    for tile in app.tileSet:
+        if ((tile.px-app.tileDim < mouseX < tile.px+app.tileDim)
+            and (tile.py-app.tileDim < mouseY < tile.py+app.tileDim)):
+            return copy.deepcopy(tile)
+    return None
 
 
 def onMouseMove(app, mouseX, mouseY):
+    
+    # if holding tile, draw current tile *bottom side left cube* on mouse position
+    # (to visualize better!)
     if app.holdingTile:
-        pass
+        app.currentTile.px, app.currentTile.py = mouseX+app.tileDim, mouseY-app.tileDim//2
 # def isTileLegal(app, )
     
 
@@ -148,6 +157,8 @@ def redrawAll(app):
     drawBoard(app) 
 
     drawTileSet(app)
+
+    drawMovingTile(app)
 
     # drawTileOnGrid(app)
 
@@ -303,7 +314,8 @@ def drawCartGrid(cx, cy, rows, cols, d): ####### NO USE
                       fill="orange", opacity=80)
                       
 ## Tile Functions ##
-def drawTile(app, tile, px, py):
+# 1. Tile set window
+def drawTileOnCanvas(app, tile, px, py):
     '''Given Tile object, and origin pixel coordinate(bottom side top point)
         draw cubes according to tile map
         Used to draw tile set'''
@@ -364,7 +376,7 @@ def drawTileSet(app):
         tile.py = py
 
         # draw tile
-        drawTile(app, tile, px, py)
+        drawTileOnCanvas(app, tile, px, py)
 
         # draw guide boundary
         drawTileBound(app, tile)
@@ -386,7 +398,7 @@ def drawTileBound(app, tile, b='cyan', b_w=1, o=80, d=(1,2)):
     drawPolygon(*tl, *tt, *bt, *bl, border=b, borderWidth=b_w, fill=None, opacity=o, dashes=d) # left back
     drawPolygon(*tt, *tr, *br, *bt, border=b, borderWidth=b_w, fill=None, opacity=o, dashes=d) # right back
 
-# TODO: rearrange drawing to draw on board -------------------------------------------------------------
+# 2. Tile 
 
 def placeTileOnBoard(app, tile, z, y, x):
     ''' Given the board coordinate of bottom side top cube (in isometric view) of tile,
@@ -439,6 +451,14 @@ def drawBoard(app):
         if c==cols-1 or app.board[l, r, c+1] != 1:
             drawPolygon(*tb, *tr, *br, *bb, border='white', borderWidth=0.3, fill='black') # draw right front
 
+def drawMovingTile(app):
+    # if holding tile, draw current tile *bottom side left cube* on mouse position
+    # (to visualize better!)
+    if app.holdingTile:
+        drawCircle(app.currentTile.px, app.currentTile.py, 10, fill='red')
+        drawTileBound(app, app.currentTile)
+        drawTileOnCanvas(app, app.currentTile, app.currentTile.px, app.currentTile.py)
+    # add rotation?
 
 
 
