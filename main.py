@@ -144,6 +144,7 @@ def rotateBoard(app):
     app.board = np.rot90(app.board, 1, (1,2))
     app.board_rotated = (app.board_rotated+1)%4
     # print(f'at rotation {app.board_rotated}, board is \n{app.board}')
+    
 
 def onMousePress(app, mouseX, mouseY):
     if not app.holdingTile: # not holding tile
@@ -539,11 +540,11 @@ def placeTileOnBoard(app, tile, l, r, c):
     # app.board_tiles[l,r,c] = 1
     if app.board_rotated == 0:
         app.board_tiles[l,r,c] = tile
-    elif app.board_rotated == 3:
+    elif app.board_rotated == 1:
         app.board_tiles[l, c, app.rows-1-r] = tile
     elif app.board_rotated == 2:
         app.board_tiles[l, app.rows-1-r, app.cols-1-c] = tile
-    elif app.board_rotated == 1:
+    elif app.board_rotated == 3:
         app.board_tiles[l, app.cols-1-c, r] = tile 
 
     # set tile location value
