@@ -43,26 +43,13 @@ def onAppStart(app):
     app.holdingTile = False
     app.currentTile = None
 
-    app.drawnTiles = []
 
 
 
 
 ########################TEST#################################
     # TEST : create tileset and draw
-    test_tile = tile.Tile("test_tile")
 
-    three_tile = np.array([
-        [[1,1,1],
-         [1,0,1],
-         [1,0,1]],
-        [[1,0,0],
-         [1,0,0],
-         [1,0,0]],
-        [[1,1,1],
-         [0,0,0],
-         [0,0,0]]
-    ])
     three_tile_full = np.array([
         [[1,1,1],
          [1,1,1],
@@ -75,10 +62,33 @@ def onAppStart(app):
          [1,1,1]]
     ])
     
-    test_tile.setMap(three_tile)
+    three_tile = np.array([
+        [[1,1,1],
+         [1,0,0],
+         [0,0,0]],
+        [[0,0,0],
+         [0,0,0],
+         [0,0,0]],
+        [[0,0,0],
+         [0,0,0],
+         [0,0,0]]
+    ])
+    r0 = tile.Tile("r0")
+    r0.setMap(three_tile)
+    # r1 = tile.Tile("r1")
+    # r1.setMap(np.rot90(three_tile, 1, (2,1))) # counter clockwise
+    # r2 = tile.Tile("r2")
+    # r2.setMap(np.rot90(three_tile, 2, (2,1))) 
+    # r3 = tile.Tile("r3")
+    # r3.setMap(np.rot90(three_tile, 3, (2,1))) 
+    # r4 = tile.Tile("r4")
+    # r4.setMap(np.rot90(three_tile, 4, (2,1))) 
+
+    # r1c = tile.Tile("r1c")
+    # r1c.setMap(np.rot90(three_tile, 1, (1,2))) # clockwise
 
     # test_tileset = [test_tile] * 4 + [zero_tile] * 5
-    test_tileset = [test_tile]
+    test_tileset = [r0]
     app.tileSet = test_tileset
 
 
@@ -89,6 +99,9 @@ def onAppStart(app):
 def onKeyPress(app, key):
     if key == 'q':
         return 42
+    if app.holdingTile:
+        if key == 'r':
+            app.currentTile.rotate()
 
 def onMousePress(app, mouseX, mouseY):
     if not app.holdingTile: # not holding tile
@@ -105,7 +118,6 @@ def onMousePress(app, mouseX, mouseY):
             app.currentTile = select
         # Case 3: Place current tile on board if legal 
         else:
-            assert(app.currentTile.onBoard)
             if isTileLegalOnBoard(app, app.currentTile.l, app.currentTile.r, app.currentTile.c):
                 # place tile on board
                 placeTileOnBoard(app, app.currentTile, app.currentTile.l, app.currentTile.r, app.currentTile.c)
@@ -130,14 +142,13 @@ def onMouseMove(app, mouseX, mouseY):
         # if not in board region, draw on mouse
         else:
             # set tile attributes
-                # set on board to true
+                # set on board to false
             app.currentTile.onBoard = False
             app.currentTile.l, app.currentTile.r, app.currentTile.c = -1, -1, -1
                 # set tile location to mouse
                 # draw *bottom side left cube* of current tile on mouse position(to visualize better!)
             app.currentTile.px, app.currentTile.py = mouseX+app.tileDim, mouseY-app.tileDim//2
 
-        # print(f'on move l,r,c = {app.currentTile.l, app.currentTile.r, app.currentTile.c} & px, py = {app.currentTile.px, app.currentTile.py}')
 
 def isTileSelect(app, mouseX, mouseY):
     ''' Checks if click is on any tile in tile set window,
@@ -200,6 +211,7 @@ def inPolygon(xq, yq, xv, yv):
 ## Draw
 def redrawAll(app):
     
+    drawGrid(app)
 
     drawTileSet(app)
 
@@ -207,7 +219,6 @@ def redrawAll(app):
     
     drawMovingTile(app)
         
-    drawGrid(app)
     
 ## Isometric Functions ##
 
@@ -326,7 +337,7 @@ def drawIsoRect(ix, iy, w, h, b='black', f=None, o=100, b_w=0.5):
                 iso_l_x, iso_l_y, border=b ,borderWidth=b_w, opacity=o, 
                 fill=f)  
 
-def drawIsoGridTiles(app, level, b='gray', f=None, label=False, b_w=0.5, o=100):
+def drawIsoGridTiles(app, level, b='skyBlue', f=None, label=False, b_w=0.5, o=100):
     ''' Given level, draw isometric grid where each grid is tile dimension'''
     d = app.tileDim
     for r in range(app.rows):
@@ -335,9 +346,9 @@ def drawIsoGridTiles(app, level, b='gray', f=None, label=False, b_w=0.5, o=100):
             drawIsoRect(tx, ty+level*d, d, d, b=b, f=f, o=o, b_w=b_w)
             if label:
                 drawLabel(f"{level},{r},{c}", tx, ty+0.5*d, size=10, font='arial', 
-                        fill="blue", opacity=80) 
+                        fill="lightSkyBlue", opacity=80) 
 
-def drawIsoGridCubes(app, z, b='gray', f=None, label=False, b_w=0.5, o=100):
+def drawIsoGridCubes(app, z, b='lightSkyBlue', f=None, label=False, b_w=0.5, o=100):
     ''' Given z, draw isometric grid where each grid is cube dimension'''
     d = app.cubeDim
     for x in range(app.rows*app.tileSize):

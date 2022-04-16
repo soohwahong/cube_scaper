@@ -16,7 +16,6 @@ margin = 25
 rows, cols = 4, 4
 cubeDim = 15
 tileSize = 3
-tileDim = tileSize * cubeDim
 levels = 4
 
 def getSettings():
@@ -26,6 +25,5 @@ def getSettings():
     S['cols'] = cols
     S['cubeDim'] = cubeDim
     S['tileSize'] = tileSize
-    S['tileDim'] = tileDim
     S['levels'] = levels
     return S

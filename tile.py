@@ -15,20 +15,26 @@ class TileSet:
 class Tile:
     ''' Create tile with adjacency rules'''
     def __init__(self, name):
-        self.name = "CUBE"
+        self.name = name
         self.size = S["tileSize"]
-        self.map = np.zeros((self.size, self.size, self.size)) # z, y, x
+        self.map = np.zeros((self.size, self.size, self.size)) # z, y, x should be z, x, y!
         # px, py pixel coordinate of center of tile : to move and place tile
         self.px = -1
         self.py = -1
         # x,y,z coordinate on board
-        self.onBoard = False # snaps to board if on board, else draw on pixel coordinate
+        self.onBoard = False # if moving on board, snaps to board, else draw on pixel coordinate
+        self.l = -1
         self.r = -1
         self.c = -1
-        self.l = -1
+
     def setMap(self, arr):
         a_dim = arr.shape
         # print(a_dim)
         if a_dim != (self.size, self.size, self.size):
             raise ValueError(f"array size should be {(self.size, self.size, self.size)}!")
         self.map = arr
+
+    def rotate(self):
+        '''rotate tile counter clockwise'''
+        self.map = np.rot90(self.map, 1, (2,1))
+        # self.map = np.rot90(self.map, 1, (1,2)) # clockwise
