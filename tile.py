@@ -26,6 +26,11 @@ class Tile:
         self.l = -1
         self.r = -1
         self.c = -1
+        # rotation status
+        self.rotated = 0
+
+    def __repr__(self):
+        return f'{self.name}({self.rotated})'
 
     def setMap(self, arr):
         a_dim = arr.shape
@@ -36,5 +41,6 @@ class Tile:
 
     def rotate(self):
         '''rotate tile counter clockwise'''
-        self.map = np.rot90(self.map, 1, (2,1))
-        # self.map = np.rot90(self.map, 1, (1,2)) # clockwise
+        # self.map = np.rot90(self.map, 1, (2,1))
+        self.map = np.rot90(self.map, 1, (1,2)) # clockwise
+        self.rotated += 1

@@ -17,6 +17,9 @@ from matplotlib import path
 
     3. Other
     InPolygon :  https://stackoverflow.com/questions/31542843/inpolygon-examples-of-matplotlib-path-path-contains-points-method
+    Rotation : https://appdividend.com/2022/01/13/numpy-rot90/
+    Numpy: https://stackoverflow.com/questions/4877624/numpy-array-of-objects
+
 
     '''
 
@@ -49,7 +52,8 @@ def onAppStart(app):
     app.rows, app.cols= S["rows"], S["cols"]
     app.levels = S["levels"]
     app.board = np.zeros((app.levels*app.tileSize, app.rows*app.tileSize, app.cols*app.tileSize)) # cube unit board
-    app.board_tiles = np.zeros((app.levels, app.rows, app.cols)) # tile unit board
+    # app.board_tiles = np.zeros((app.levels, app.rows, app.cols)) # tile unit board
+    app.board_tiles = np.empty((app.levels, app.rows, app.cols), dtype=object) # tile unit board : stores tiles
     # records number of rotations counter clockwise of board. 
     # 0 is default 0~3
     app.board_rotated = 0
@@ -82,18 +86,18 @@ def onAppStart(app):
     ])
     
     three_tile = np.array([
-        [[1,1,1],
-         [0,0,0],
-         [0,0,0]],
-        [[1,0,0],
-         [0,0,0],
-         [0,0,0]],
         [[1,0,0],
          [1,0,0],
-         [1,0,0]]
+         [1,0,0]],
+        [[0,0,0],
+         [0,0,0],
+         [0,0,0]],
+        [[0,0,0],
+         [0,0,0],
+         [0,0,0]]
     ])
-    r0 = tile.Tile("r0")
-    r0.setMap(three_tile)
+    test_tile = tile.Tile("r0")
+    test_tile.setMap(three_tile)
     # r1 = tile.Tile("r1")
     # r1.setMap(np.rot90(three_tile, 1, (2,1))) # counter clockwise
     # r2 = tile.Tile("r2")
@@ -107,7 +111,7 @@ def onAppStart(app):
     # r1c.setMap(np.rot90(three_tile, 1, (1,2))) # clockwise
 
     # test_tileset = [test_tile] * 4 + [zero_tile] * 5
-    test_tileset = [r0]
+    test_tileset = [test_tile]
     app.tileSet = test_tileset
 
 
@@ -139,7 +143,7 @@ def rotateBoard(app):
         '''
     app.board = np.rot90(app.board, 1, (1,2))
     app.board_rotated = (app.board_rotated+1)%4
-    print(app.board_rotated)
+    # print(f'at rotation {app.board_rotated}, board is \n{app.board}')
 
 def onMousePress(app, mouseX, mouseY):
     if not app.holdingTile: # not holding tile
@@ -159,6 +163,7 @@ def onMousePress(app, mouseX, mouseY):
             if isTileLegalOnBoard(app, app.currentTile.l, app.currentTile.r, app.currentTile.c):
                 # place tile on board
                 placeTileOnBoard(app, app.currentTile, app.currentTile.l, app.currentTile.r, app.currentTile.c)
+                print(f'current board = \n{app.board_tiles}')
                 # revert app attributes related to holding tile
                 app.currentTile = None
                 app.holdingTile = False
@@ -204,7 +209,8 @@ def inBoardRegion(app, mouseX, mouseY):
         and if it is, returns tile index (level, row, col),
         otherwise return None'''
     # for each index in board
-    for l, r, c in (np.argwhere((app.board_tiles == 0) | (app.board_tiles == 1))):
+    # for l, r, c in (np.argwhere((app.board_tiles == 0) | (app.board_tiles == 1))):
+    for l, r, c in np.argwhere(app.board_tiles!=0): # get all indices of board tile
         # get four corners pixel coordinates in order t, r, b, l
         d = app.tileDim
         tx ,ty = tileIndexToPixel(app,l,r,c)
@@ -228,6 +234,7 @@ def isTileLegalOnBoard(app, l, r, c):
     return True
 
     # Checks adjacency
+
 
 def inPolygon(xq, yq, xv, yv):
         ''' xv, yv are 1d numpy arrays of coordinates that form polygon
@@ -395,13 +402,13 @@ def drawIsoGridTiles(app, level, b='gray', f=None, label=False, b_w=0.5, o=50):
                     drawLabel(f"{level},{r},{c}", tx, ty+0.5*d, size=10, font='arial', 
                             fill="skyBlue", opacity=80) 
                 if app.board_rotated == 1:
-                    drawLabel(f"{level},{r},{app.cols-1-c}", tx, ty+0.5*d, size=10, font='arial', 
+                    drawLabel(f"{level},{c},{app.rows-1-r}", tx, ty+0.5*d, size=10, font='arial', 
                             fill="skyBlue", opacity=80) 
                 if app.board_rotated == 2:
                     drawLabel(f"{level},{app.rows-1-r},{app.cols-1-c}", tx, ty+0.5*d, size=10, font='arial', 
                             fill="skyBlue", opacity=80) 
                 if app.board_rotated == 3:
-                    drawLabel(f"{level},{app.rows-1-r},{c}", tx, ty+0.5*d, size=10, font='arial', 
+                    drawLabel(f"{level},{app.cols-1-c},{r}", tx, ty+0.5*d, size=10, font='arial', 
                             fill="skyBlue", opacity=80) 
 
                 
@@ -515,17 +522,30 @@ def drawTileBound(app, tile, b='lightSkyBlue', b_w=1, f=None, o=80, d=(1,3)):
 
 # 2. Tile 
 
+####################TODO: account for board rotation ###############
+
 def placeTileOnBoard(app, tile, l, r, c):
     ''' Given the board index l, r, c of tile,
         place tile on board by placing valid cube
-        Accounts for board rotation status
+        Accounts for board rotation status*
         '''
     # replace part of board map with tile map
     # print(f'board shape is {app.board.shape} and tile shape is {tile.map.shape}')
     d = app.tileSize
     z, x, y = l*d, r*d, c*d
     app.board[z:z+d, x:x+d, y:y+d] = tile.map
-    app.board_tiles[l,r,c] = 1
+    
+    # place on board_tiles
+    # app.board_tiles[l,r,c] = 1
+    if app.board_rotated == 0:
+        app.board_tiles[l,r,c] = tile
+    elif app.board_rotated == 3:
+        app.board_tiles[l, c, app.rows-1-r] = tile
+    elif app.board_rotated == 2:
+        app.board_tiles[l, app.rows-1-r, app.cols-1-c] = tile
+    elif app.board_rotated == 1:
+        app.board_tiles[l, app.cols-1-c, r] = tile 
+
     # set tile location value
     tile.onBoard = True
     tile.l, tile.r, tile.c = l, r, c
