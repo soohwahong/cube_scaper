@@ -5,6 +5,21 @@ import tile
 import copy
 from matplotlib import path
 
+''' Resources 
+    1. Isometric Projection
+    https://www.youtube.com/watch?v=gE2gTCwLdFM
+    https://k3no.medium.com/isometric-grids-in-python-40c0fad54552
+    https://tips.clip-studio.com/en-us/articles/4969
+    
+    2. Isometric Tile Set
+    http://cr31.co.uk/iso/iso.html
+    https://catlikecoding.com/unity/tutorials/marching-squares/
+
+    3. Other
+    InPolygon :  https://stackoverflow.com/questions/31542843/inpolygon-examples-of-matplotlib-path-path-contains-points-method
+
+    '''
+
 def onAppStart(app):
 
     app.setMaxShapeCount(100000)
@@ -35,16 +50,20 @@ def onAppStart(app):
     app.levels = S["levels"]
     app.board = np.zeros((app.levels*app.tileSize, app.rows*app.tileSize, app.cols*app.tileSize)) # cube unit board
     app.board_tiles = np.zeros((app.levels, app.rows, app.cols)) # tile unit board
-
-    # top pixel coordinate of background grid at level 0
+    # records number of rotations counter clockwise of board. 
+    # 0 is default 0~3
+    app.board_rotated = 0
+    
+    #top pixel coordinate of background grid at level 0
     app.grid_ix, app.grid_iy = app.gridWin_l + app.gridWin_w/2, app.gridWin_t + app.tileDim * (app.levels + 2)
 
     # user action state
     app.holdingTile = False
     app.currentTile = None
 
-
-
+    # drawing reference
+    app.currentLevel = 0
+    
 
 
 ########################TEST#################################
@@ -64,14 +83,14 @@ def onAppStart(app):
     
     three_tile = np.array([
         [[1,1,1],
+         [0,0,0],
+         [0,0,0]],
+        [[1,0,0],
+         [0,0,0],
+         [0,0,0]],
+        [[1,0,0],
          [1,0,0],
-         [0,0,0]],
-        [[0,0,0],
-         [0,0,0],
-         [0,0,0]],
-        [[0,0,0],
-         [0,0,0],
-         [0,0,0]]
+         [1,0,0]]
     ])
     r0 = tile.Tile("r0")
     r0.setMap(three_tile)
@@ -99,9 +118,28 @@ def onAppStart(app):
 def onKeyPress(app, key):
     if key == 'q':
         return 42
+    
+    # Rotate Holding tile
     if app.holdingTile:
         if key == 'r':
             app.currentTile.rotate()
+
+    # Control Level guide
+    if (key == 'up') and (app.currentLevel<app.levels-1):
+        app.currentLevel += 1
+    if (key == 'down') and (app.currentLevel>0):
+        app.currentLevel -= 1
+
+    # Rotate board
+    if (key == 'right'):
+        rotateBoard(app)
+
+def rotateBoard(app):
+    ''' On right press, rotate the board
+        '''
+    app.board = np.rot90(app.board, 1, (1,2))
+    app.board_rotated = (app.board_rotated+1)%4
+    print(app.board_rotated)
 
 def onMousePress(app, mouseX, mouseY):
     if not app.holdingTile: # not holding tile
@@ -124,6 +162,7 @@ def onMousePress(app, mouseX, mouseY):
                 # revert app attributes related to holding tile
                 app.currentTile = None
                 app.holdingTile = False
+
 
 
 def onMouseMove(app, mouseX, mouseY):
@@ -211,11 +250,16 @@ def inPolygon(xq, yq, xv, yv):
 ## Draw
 def redrawAll(app):
     
-    drawGrid(app)
 
     drawTileSet(app)
 
+    drawGrid(app)
+
+    
     drawBoard(app) 
+
+    drawLevelGrid(app)
+    
     
     drawMovingTile(app)
         
@@ -337,24 +381,39 @@ def drawIsoRect(ix, iy, w, h, b='black', f=None, o=100, b_w=0.5):
                 iso_l_x, iso_l_y, border=b ,borderWidth=b_w, opacity=o, 
                 fill=f)  
 
-def drawIsoGridTiles(app, level, b='skyBlue', f=None, label=False, b_w=0.5, o=100):
-    ''' Given level, draw isometric grid where each grid is tile dimension'''
+def drawIsoGridTiles(app, level, b='gray', f=None, label=False, b_w=0.5, o=50):
+    ''' Given level, draw isometric grid where each grid is tile dimension
+        Default is background tile grid
+        Label accounts for board rotation '''
     d = app.tileDim
     for r in range(app.rows):
         for c in range(app.cols):
             tx , ty = tileIndexToPixel(app, level, r, c)
-            drawIsoRect(tx, ty+level*d, d, d, b=b, f=f, o=o, b_w=b_w)
+            drawIsoRect(tx, ty, d, d, b=b, f=f, o=o, b_w=b_w)
             if label:
-                drawLabel(f"{level},{r},{c}", tx, ty+0.5*d, size=10, font='arial', 
-                        fill="lightSkyBlue", opacity=80) 
+                if app.board_rotated == 0:
+                    drawLabel(f"{level},{r},{c}", tx, ty+0.5*d, size=10, font='arial', 
+                            fill="skyBlue", opacity=80) 
+                if app.board_rotated == 1:
+                    drawLabel(f"{level},{r},{app.cols-1-c}", tx, ty+0.5*d, size=10, font='arial', 
+                            fill="skyBlue", opacity=80) 
+                if app.board_rotated == 2:
+                    drawLabel(f"{level},{app.rows-1-r},{app.cols-1-c}", tx, ty+0.5*d, size=10, font='arial', 
+                            fill="skyBlue", opacity=80) 
+                if app.board_rotated == 3:
+                    drawLabel(f"{level},{app.rows-1-r},{c}", tx, ty+0.5*d, size=10, font='arial', 
+                            fill="skyBlue", opacity=80) 
 
-def drawIsoGridCubes(app, z, b='lightSkyBlue', f=None, label=False, b_w=0.5, o=100):
-    ''' Given z, draw isometric grid where each grid is cube dimension'''
+                
+
+def drawIsoGridCubes(app, z, b='lightGray', f=None, label=False, b_w=0.2, o=100):
+    ''' Given z, draw isometric grid where each grid is cube dimension
+        Default is for current level'''
     d = app.cubeDim
     for x in range(app.rows*app.tileSize):
         for y in range(app.cols*app.tileSize):
             cx , cy = cubeIndexToPixel(app, z, x, y)
-            drawIsoRect(cx, cy+z*d, d, d, b=b, f=f, o=o, b_w=b_w)
+            drawIsoRect(cx, cy, d, d, b=b, f=f, o=o, b_w=b_w)
             # if label:
             #     drawLabel(f"{r},{c}", app.grid_ix, app.grid_iy+0.5*d, size=10, font='arial', 
             #             fill="blue", opacity=80) 
@@ -439,7 +498,7 @@ def drawTileSet(app):
                     px+0.5*ph_w, py+0.5*ph_h, px-0.5*ph_w, py+0.5*ph_h, borderWidth=1,
                     fill=None, border='yellowGreen', dashes=True)
 
-def drawTileBound(app, tile, b='cyan', b_w=1, f=None, o=80, d=(1,2)):
+def drawTileBound(app, tile, b='lightSkyBlue', b_w=1, f=None, o=80, d=(1,3)):
     ''' Draw tile bounds
         Default is for dotted line around tile set
         Used for displaying legality when moving tile on board'''
@@ -459,6 +518,7 @@ def drawTileBound(app, tile, b='cyan', b_w=1, f=None, o=80, d=(1,2)):
 def placeTileOnBoard(app, tile, l, r, c):
     ''' Given the board index l, r, c of tile,
         place tile on board by placing valid cube
+        Accounts for board rotation status
         '''
     # replace part of board map with tile map
     # print(f'board shape is {app.board.shape} and tile shape is {tile.map.shape}')
@@ -487,11 +547,17 @@ def drawGrid(app):
     # grid_ix, grid_iy = app.gridWin_l + app.gridWin_w/2, app.gridWin_t + app.tileDim * (app.levels + 2)
     
     # background iso grid
-    drawIsoGridTiles(app, 0, label=True) # level 0 tile grid in default lines
-    drawIsoGridCubes(app, 0, b='lightgray', b_w = 0.2)
+    # drawIsoGridTiles(app, 0, label=True) # level 0 tile grid in default lines
+    # drawIsoGridCubes(app, 0, b='lightgray', b_w = 0.2)
 
-    for level in range(1, app.levels):
-        drawIsoGridTiles(app, level, label=True) # level 1~tile grid: 
+    for level in range(0, app.levels):
+        drawIsoGridTiles(app, level, label=False) # level 1~tile grid: 
+
+def drawLevelGrid(app):
+    level = app.currentLevel
+    drawIsoGridTiles(app, level, label=True, o=30, f='lightSkyBlue')
+    drawIsoGridCubes(app, level*app.tileSize)
+
     
 def drawBoard(app):
     # board size in units of cubes
@@ -501,6 +567,8 @@ def drawBoard(app):
     d = app.cubeDim
 
     # go over cubes on board, check if face occluded, draw only when displayed
+    
+    # go over cubes on board before current layer
     cubeInds = np.argwhere(app.board == 1)
     for z,x,y in cubeInds:
         cx, cy = cubeIndexToPixel(app, z, x, y)
@@ -513,6 +581,8 @@ def drawBoard(app):
             drawPolygon(*tl, *bl, *bb, *tb, border='black', borderWidth=0.3, fill='gray') # draw left front
         if x==rows-1 or app.board[z, x+1, y] != 1:
             drawPolygon(*tb, *tr, *br, *bb, border='white', borderWidth=0.3, fill='black') # draw right front
+
+
 
 
 def drawMovingTile(app):
