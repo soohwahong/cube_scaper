@@ -3,6 +3,7 @@ import numpy as np
 import settings 
 import tile
 import copy
+from matplotlib import path
 
 def onAppStart(app):
 
@@ -32,7 +33,8 @@ def onAppStart(app):
     # Iso board
     app.rows, app.cols= S["rows"], S["cols"]
     app.levels = S["levels"]
-    app.board = np.zeros((app.levels*app.tileSize, app.rows*app.tileSize, app.cols*app.tileSize))
+    app.board = np.zeros((app.levels*app.tileSize, app.rows*app.tileSize, app.cols*app.tileSize)) # cube unit board
+    app.board_tiles = np.zeros((app.levels, app.rows, app.cols)) # tile unit board
 
     # top pixel coordinate of background grid at level 0
     app.grid_ix, app.grid_iy = app.gridWin_l + app.gridWin_w/2, app.gridWin_t + app.tileDim * (app.levels + 2)
@@ -109,9 +111,6 @@ def onAppStart(app):
 
 
 ## Functions used on start
-def initializeBoard(app):
-    # returns empty isometric grid
-    return 42
 
 ## Controllers
 
@@ -120,15 +119,46 @@ def onKeyPress(app, key):
         return 42
 
 def onMousePress(app, mouseX, mouseY):
-
-    # check if legal place (including adjacency constraints)
-
-    ## Test ##
-    if isTileSetRegion(app, mouseX, mouseY) != None:
-        select = isTileSetRegion(app, mouseX, mouseY)
-        app.holdingTile = True
+    # Case 1: Selecting tile to add to board
+    select = isTileSetRegion(app, mouseX, mouseY)
+    if select != None:
+        if (not app.holdingTile): # selecting tile anew
+            app.holdingTile = True
+        # setting current tile to select tile
         app.currentTile = select
+
+    # Case 2:
+    # place on board if legal place (including adjacency constraints)
+    # if
     
+    ## Test ##
+    if (inBoardRegion(app, mouseX, mouseY)!=None):
+        placeTileOnBoard(app,app.currentTile, z, y, x)
+
+
+
+
+def onMouseMove(app, mouseX, mouseY):
+
+    if app.holdingTile:
+        # if holding tile, draw current tile *bottom side left cube* on mouse position
+        # (to visualize better!)
+        app.currentTile.px, app.currentTile.py = mouseX+app.tileDim, mouseY-app.tileDim//2
+    
+        # if in board region, snap to board 
+        if (inBoardRegion(app, mouseX, mouseY)!=None):
+            z, y, x = inBoardRegion(app, mouseX, mouseY) # board coordinate of tile
+            app.currentTile.z, app.currentTile.y, app.currentTile.x = z, y, x
+            # if tile legal on board(no tile & satisfies adjacency rule), show green shadow, if not show red
+            # first clear board color
+            app.board_green = np.zeros((app.levels*app.tileSize, app.rows*app.tileSize, app.cols*app.tileSize))
+            app.board_red = np.zeros((app.levels*app.tileSize, app.rows*app.tileSize, app.cols*app.tileSize))
+            if isTileLegalOnBoard(app, z, y, x):
+                size = app.currentTile.size
+                app.board_green[x:x+size, y:y+size, z:z+size] = app.currentTile.map
+            else:
+                app.board_red[x:x+size, y:y+size, z:z+size] = app.currentTile.map
+
 
 def isTileSetRegion(app, mouseX, mouseY):
     ''' Checks if click is on any tile in tile set window,
@@ -140,14 +170,57 @@ def isTileSetRegion(app, mouseX, mouseY):
             return copy.deepcopy(tile)
     return None
 
+#################### TODO ####################
+def inBoardRegion(app, mouseX, mouseY):
+    ''' Checks if mouse is on isometric board window,
+        and if it is, returns tile index (level, col, row),
+        otherwise return None'''
+    # for each index in board
+    for l, c, r in (np.argwhere((app.board_tiles == 0) | (app.board_tiles == 1))):
+        # get four corners pixel coordinates in order t, r, b, l
+        d = app.tileDim
+        tx ,ty = tileOnBoardOrigin(l,c,r,app.grid_ix, app.grid_iy, d)
+        rx, ry = tx+d, ty-0.5*d
+        bx, by = tx, ty+d
+        lx, ly = tx-d, ty-0.5*d
+        
+        xv = np.array([tx, rx, bx, lx])
+        yv = np.array([ty, ry, by, ly])
+        if inPolygon(np.array([mouseX]), np.array([mouseY]), xv, yv):
+            print("Mouse is in board region!")
+            return l, c, r
 
-def onMouseMove(app, mouseX, mouseY):
+#################### TODO : checks adjacency ####################
+def isTileLegalOnBoard(app, z, y, x):
+    ''' Given tile index on board, 
+        Returns boolean value of whether tile is legal 
+        (there isn't any existing tile on board
+         and meets adjacency constraints with 6 neighboring tiles '''
+    # Checks existing
+    if app.board_tiles[z,y,x] == 1: return False
+    return True
+
+    # Checks adjacency
+
     
-    # if holding tile, draw current tile *bottom side left cube* on mouse position
-    # (to visualize better!)
-    if app.holdingTile:
-        app.currentTile.px, app.currentTile.py = mouseX+app.tileDim, mouseY-app.tileDim//2
-# def isTileLegal(app, )
+
+def inPolygon(xq, yq, xv, yv):
+        ''' xv, yv are 1d numpy arrays of coordinates that form polygon
+            xq, yq are 1d numpy arrays of points that are being evaluated
+            returns 1d array of boolean values
+            Author : Ramesh-X
+            Date: Apr 9, 2018
+            Availability: https://stackoverflow.com/questions/31542843/inpolygon-examples-of-matplotlib-path-path-contains-points-method
+            '''
+        shape = xq.shape
+        xq = xq.reshape(-1) 
+        yq = yq.reshape(-1)
+        xv = xv.reshape(-1)
+        yv = yv.reshape(-1)
+        q = [(xq[i], yq[i]) for i in range(xq.shape[0])]
+        p = path.Path([(xv[i], yv[i]) for i in range(xv.shape[0])])
+        return p.contains_points(q).reshape(shape)
+
     
 
 ## Draw
@@ -159,6 +232,12 @@ def redrawAll(app):
     drawTileSet(app)
 
     drawMovingTile(app)
+
+    # # test map to pixel
+    # print(f'origin: {app.grid_ix, app.grid_iy}')
+    # print(f'map to pixel test : origin {tileOnBoardOrigin(1,0,0, app.grid_ix, app.grid_iy, app.tileDim)}')
+    # print(f'map to pixel test : 1,0 {tileOnBoardOrigin(1,0,0, app.grid_ix, app.grid_iy, app.tileDim)}')
+    # drawCircle(*tileOnBoardOrigin(1,0,0, app.grid_ix, app.grid_iy, app.tileDim), 3, fill='red')
 
     # drawTileOnGrid(app)
 
@@ -193,6 +272,18 @@ def isoToCart(ix, iy):
     cx = (ix + 2*iy)/2
     cy = (-ix + 2*iy)/2
     return int(cx), int(cy)
+
+def tileOnBoardOrigin(l, c, r, ix, iy, d):
+    '''Given 3d board coordinate of tile unit l, c, r,
+    pixel coordinate of origin of 3d isometric grid(top point of level0) ix, iy,
+    and dimension of one unit d,
+    Return pixel coordinate of origin(center) tx, ty
+    isometric width is 2*d and height is d
+    '''
+    tx = ix + r*d - c*d 
+    ty = iy + r*0.5*d + c*0.5*d - l*d
+    return tx, ty
+
       
 def drawIsoCube(px, py, w, d, h): ###### NO USE
     ''' Given pixel location ix,iy of bottom top point of cube,
@@ -403,11 +494,14 @@ def drawTileBound(app, tile, b='cyan', b_w=1, o=80, d=(1,2)):
 def placeTileOnBoard(app, tile, z, y, x):
     ''' Given the board coordinate of bottom side top cube (in isometric view) of tile,
         place tile on board by placing valid cube
-        Need to assign tile.x, tile.y, tile.z before placing on board!'''
+        '''
     # replace part of board map with tile map
     # print(f'board shape is {app.board.shape} and tile shape is {tile.map.shape}')
     app.board[x:x+tile.size, y:y+tile.size, z:z+tile.size] = tile.map
+    app.board_tile[z,y,x] = 1
+    # set tile location vlaue
     tile.x, tile.y, tile.z = x, y, z
+    tile.px, tile.py = -1, -1 # clearing values if any
 
 def drawBoard(app):
     ''' Draws isometric grid and tiles placed on board.
@@ -459,8 +553,6 @@ def drawMovingTile(app):
         drawTileBound(app, app.currentTile)
         drawTileOnCanvas(app, app.currentTile, app.currentTile.px, app.currentTile.py)
     # add rotation?
-
-
 
 
 def main():
