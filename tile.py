@@ -8,13 +8,13 @@ S = getSettings()
 
 class TileSet:
     ''' Create tile set '''
-    def __init__(self, name, tile_names):
-        self.name = "basic"
-        self.tiles_names = ["CUBE", "STAIRS", "HALL"]
+    def __init__(self, name):
+        self.name = name
+        self.tiles = [] # tile objects
 
 class Tile:
     ''' Create tile with adjacency rules'''
-    def __init__(self, name):
+    def __init__(self, name, start, end):
         self.name = name
         self.size = S["tileSize"]
         self.map = np.zeros((self.size, self.size, self.size)) # z, y, x should be z, x, y!
@@ -28,6 +28,10 @@ class Tile:
         self.c = -1
         # rotation status
         self.rotated = 0
+        # start and end 
+        # (isometric center(bottom side top corner)is 1 and proceeds clockwise, topside starts from 5 ~ 8)
+        self.start = start
+        self.end = end
 
     def __repr__(self):
         return f'{self.name}({self.rotated})'
@@ -44,3 +48,16 @@ class Tile:
         # self.map = np.rot90(self.map, 1, (2,1))
         self.map = np.rot90(self.map, 1, (1,2)) # clockwise
         self.rotated += 1
+        
+        # rotate start and end
+        if self.start == 8: self.start = 5
+        elif self.start == 4: self.start = 1
+        else:
+            self.start += 1
+
+        if self.end == 8: self.end = 5
+        elif self.end == 4: self.end = 1
+        else:
+            self.end += 1
+    
+    

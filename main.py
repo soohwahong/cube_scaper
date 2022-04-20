@@ -1,9 +1,10 @@
 from cmu_cs3_graphics import *
 import numpy as np
 import settings 
-import tile
+from tile import *
 import copy
 from matplotlib import path
+from tileSetA import *
 
 ''' Resources 
     1. Isometric Projection
@@ -23,6 +24,18 @@ from matplotlib import path
 
     '''
 
+
+
+'''
+TODO
+0. Check adjacency implement
+1. create tile set with start and end 
+2. rotate tile changes start and end
+3. adjacency rules depend on start and end
+
+4. Implement WFC
+
+'''
 def onAppStart(app):
 
     app.setMaxShapeCount(100000)
@@ -34,7 +47,7 @@ def onAppStart(app):
     app.tileSize = S["tileSize"] # num of cubes on one side of tile
     app.cubeDim = S["cubeDim"]   # pixel dim of one side of cube 
     app.tileDim = app.tileSize * app.cubeDim   # pixel dim of one side of tile
-    app.tileSet = None 
+    app.tileSet = tileSetA
 
     # Tile set window (width, height, left, top)
     app.tileWin_w = app.width/2 - 5 * app.margin
@@ -51,9 +64,11 @@ def onAppStart(app):
     # Iso board
     app.rows, app.cols= S["rows"], S["cols"]
     app.levels = S["levels"]
-    app.board = np.zeros((app.levels*app.tileSize, app.rows*app.tileSize, app.cols*app.tileSize)) # cube unit board
+    # cube unit board
+    app.board = np.zeros((app.levels*app.tileSize, app.rows*app.tileSize, app.cols*app.tileSize)) 
     # app.board_tiles = np.zeros((app.levels, app.rows, app.cols)) # tile unit board
-    app.board_tiles = np.empty((app.levels, app.rows, app.cols), dtype=object) # tile unit board : stores tiles
+    # tile unit board : stores tile objects
+    app.board_tiles = np.empty((app.levels, app.rows, app.cols), dtype=object)
     # records number of rotations counter clockwise of board. 
     # 0 is default 0~3
     app.board_rotated = 0
@@ -73,46 +88,49 @@ def onAppStart(app):
 ########################TEST#################################
     # TEST : create tileset and draw
 
-    three_tile_full = np.array([
-        [[1,1,1],
-         [1,1,1],
-         [1,1,1]],
-        [[1,1,1],
-         [1,1,1],
-         [1,1,1]],
-        [[1,1,1],
-         [1,1,1],
-         [1,1,1]]
-    ])
+    # three_tile_full = np.array([
+    #     [[1,1,1],
+    #      [1,1,1],
+    #      [1,1,1]],
+    #     [[1,1,1],
+    #      [1,1,1],
+    #      [1,1,1]],
+    #     [[1,1,1],
+    #      [1,1,1],
+    #      [1,1,1]]
+    # ])
     
-    three_tile = np.array([
-        [[1,0,0],
-         [1,0,0],
-         [1,0,0]],
-        [[0,0,0],
-         [0,0,0],
-         [0,0,0]],
-        [[0,0,0],
-         [0,0,0],
-         [0,0,0]]
-    ])
-    test_tile = tile.Tile("r0")
-    test_tile.setMap(three_tile)
-    # r1 = tile.Tile("r1")
-    # r1.setMap(np.rot90(three_tile, 1, (2,1))) # counter clockwise
-    # r2 = tile.Tile("r2")
-    # r2.setMap(np.rot90(three_tile, 2, (2,1))) 
-    # r3 = tile.Tile("r3")
-    # r3.setMap(np.rot90(three_tile, 3, (2,1))) 
-    # r4 = tile.Tile("r4")
-    # r4.setMap(np.rot90(three_tile, 4, (2,1))) 
+    # three_tile = np.array([
+    #     [[1,1,0],
+    #      [1,0,0],
+    #      [1,1,0]],
+    #     [[1,1,0],
+    #      [0,0,0],
+    #      [0,1,0]],
+    #     [[1,0,0],
+    #      [0,0,0],
+    #      [0,0,0]]
+    # ])
+    # test_tile = Tile("r0", 2, 3)
+    # test_tile.setMap(three_tile)
+    # # r1 = tile.Tile("r1")
+    # # r1.setMap(np.rot90(three_tile, 1, (2,1))) # counter clockwise
+    # # r2 = tile.Tile("r2")
+    # # r2.setMap(np.rot90(three_tile, 2, (2,1))) 
+    # # r3 = tile.Tile("r3")
+    # # r3.setMap(np.rot90(three_tile, 3, (2,1))) 
+    # # r4 = tile.Tile("r4")
+    # # r4.setMap(np.rot90(three_tile, 4, (2,1))) 
 
-    # r1c = tile.Tile("r1c")
-    # r1c.setMap(np.rot90(three_tile, 1, (1,2))) # clockwise
+    # # r1c = tile.Tile("r1c")
+    # # r1c.setMap(np.rot90(three_tile, 1, (1,2))) # clockwise
 
-    # test_tileset = [test_tile] * 4 + [zero_tile] * 5
-    test_tileset = [test_tile]
-    app.tileSet = test_tileset
+    # # test_tileset = [test_tile] * 4 + [zero_tile] * 5
+    # test_tileset = [test_tile]
+    # app.tileSet = test_tileset
+
+
+
 
 
 ## Functions used on start
@@ -127,6 +145,8 @@ def onKeyPress(app, key):
     if app.holdingTile:
         if key == 'r':
             app.currentTile.rotate()
+            print(f'{app.currentTile.name} is rotated {app.currentTile.rotated} \
+                and start, end is {app.currentTile.start, app.currentTile.end}')
 
     # Control Level guide
     if (key == 'up') and (app.currentLevel<app.levels-1):
@@ -155,13 +175,13 @@ def onMousePress(app, mouseX, mouseY):
             app.currentTile = select
 
     else: # holding tile
-        select = isTileSelect(app, mouseX, mouseY)
+        select = isTileSelect(app, mouseX, mouseY) # checks if click is in tileset region
         # Case 2: swap holding tile
         if select !=None:
             app.currentTile = select
         # Case 3: Place current tile on board if legal 
         else:
-            if isTileLegalOnBoard(app, app.currentTile.l, app.currentTile.r, app.currentTile.c):
+            if isTileLegalOnBoard(app, app.currentTile, app.currentTile.l, app.currentTile.r, app.currentTile.c):
                 # place tile on board
                 placeTileOnBoard(app, app.currentTile, app.currentTile.l, app.currentTile.r, app.currentTile.c)
                 print(f'current board = \n{app.board_tiles}')
@@ -199,7 +219,7 @@ def isTileSelect(app, mouseX, mouseY):
     ''' Checks if click is on any tile in tile set window,
         and if it is, returns copy of clicked tile,
         otherwise return None'''
-    for tile in app.tileSet:
+    for tile in app.tileSet.tiles:
         if ((tile.px-app.tileDim < mouseX < tile.px+app.tileDim)
             and (tile.py-app.tileDim < mouseY < tile.py+app.tileDim)):
             return copy.deepcopy(tile)
@@ -225,16 +245,63 @@ def inBoardRegion(app, mouseX, mouseY):
             return l, r, c
 
 #################### TODO : checks adjacency ####################
-def isTileLegalOnBoard(app, l, r, c):
-    ''' Given tile index on board, 
+def isTileLegalOnBoard(app, tile, l, r, c):
+    ''' Given tile and tile index on board, 
         Returns boolean value of whether tile is legal 
         (there isn't any existing tile on board
-         and meets adjacency constraints with 6 neighboring tiles '''
+         and meets adjacency constraints with neighboring tiles (3 previous, 3 next tiles)'''
     # Checks existing
     if app.board_tiles[l,r,c] == 1: return False
-    return True
 
     # Checks adjacency
+    if checkPreviousTile(app, tile,l,r,c) == False : return False
+    # if checkNextTile(app, tile,l,r,c) == False : return False
+
+    return True
+
+def checkPreviousTile(app, tile,l,r,c):
+    '''Checks 3 neighbors of start cube of current tile,
+       if previous tile exists, previous.end must meet current.start'''
+    # start is at bottom side cube
+    if tile.start == 4:
+        if c<app.cols-1 and (app.board_tiles[l,r,c+1] != None) and (app.board_tiles[l,r,c+1].end != 1): return False # column direction
+        if r>1 and (app.board_tiles[l,r-1,c] != None) and (app.board_tiles[l,r-1,c].end != 3): return False # row direction
+        if l>1 and (app.board_tiles[l-1,r,c] != None) and (app.board_tiles[l-1,r,c].end != 8): return False # level direction
+    if tile.start == 3:
+        if c<app.cols-1 and (app.board_tiles[l,r,c+1] != None) and (app.board_tiles[l,r,c+1].end != 2): return False # column direction
+        if r<app.rows-1 and (app.board_tiles[l,r+1,c] != None) and (app.board_tiles[l,r+1,c].end != 4): return False # row direction
+        if l>1 and (app.board_tiles[l-1,r,c] != None) and (app.board_tiles[l-1,r,c].end != 7): return False # level direction
+    # if tile.start == 2:
+    #     if c<app.cols-1 and (app.board_tiles[l,r,c+1] != None) and (app.board_tiles[l,r,c+1].end != 1): return False # column direction
+    #     if r>1 and (app.board_tiles[l,r-1,c] != None) and (app.board_tiles[l,r-1,c].end != 3): return False # row direction
+    #     if l>1 and (app.board_tiles[l-1,r,c] != None) and (app.board_tiles[l-1,r,c].end != 8): return False # level direction
+    # if tile.start == 1:
+    #     if c<app.cols-1 and (app.board_tiles[l,r,c+1] != None) and (app.board_tiles[l,r,c+1].end != 1): return False # column direction
+    #     if r>1 and (app.board_tiles[l,r-1,c] != None) and (app.board_tiles[l,r-1,c].end != 3): return False # row direction
+    #     if l>1 and (app.board_tiles[l-1,r,c] != None) and (app.board_tiles[l-1,r,c].end != 8): return False # level direction
+    # # start is at top cube
+    # if tile.start == 8:
+    #     if c<app.cols-1 and (app.board_tiles[l,r,c+1] != None) and (app.board_tiles[l,r,c+1].end != 1): return False # column direction
+    #     if r>1 and (app.board_tiles[l,r-1,c] != None) and (app.board_tiles[l,r-1,c].end != 3): return False # row direction
+    #     if l>1 and (app.board_tiles[l-1,r,c] != None) and (app.board_tiles[l-1,r,c].end != 8): return False # level direction
+    # if tile.start == 7:
+    #     if c<app.cols-1 and (app.board_tiles[l,r,c+1] != None) and (app.board_tiles[l,r,c+1].end != 1): return False # column direction
+    #     if r>1 and (app.board_tiles[l,r-1,c] != None) and (app.board_tiles[l,r-1,c].end != 3): return False # row direction
+    #     if l>1 and (app.board_tiles[l-1,r,c] != None) and (app.board_tiles[l-1,r,c].end != 8): return False # level direction
+    # if tile.start == 6:
+    #     if c<app.cols-1 and (app.board_tiles[l,r,c+1] != None) and (app.board_tiles[l,r,c+1].end != 1): return False # column direction
+    #     if r>1 and (app.board_tiles[l,r-1,c] != None) and (app.board_tiles[l,r-1,c].end != 3): return False # row direction
+    #     if l>1 and (app.board_tiles[l-1,r,c] != None) and (app.board_tiles[l-1,r,c].end != 8): return False # level direction
+    # if tile.start == 5:
+    #     if c<app.cols-1 and (app.board_tiles[l,r,c+1] != None) and (app.board_tiles[l,r,c+1].end != 1): return False # column direction
+    #     if r>1 and (app.board_tiles[l,r-1,c] != None) and (app.board_tiles[l,r-1,c].end != 3): return False # row direction
+    #     if l>1 and (app.board_tiles[l-1,r,c] != None) and (app.board_tiles[l-1,r,c].end != 8): return False # level direction
+
+    
+    return True
+
+    
+
 
 
 def inPolygon(xq, yq, xv, yv):
@@ -442,8 +509,8 @@ def drawTileOnCanvas(app, tile, px, py):
         Used to draw tile set'''
 
     d = app.cubeDim
+    
 
-    # Numpy version
     levels, rows, cols = np.shape(tile.map)
     cubeInds = np.argwhere(tile.map == 1)
     for z,x,y in cubeInds:
@@ -463,6 +530,17 @@ def drawTileOnCanvas(app, tile, px, py):
         if x==rows-1 or tile.map[z, x+1, y] != 1:
             drawPolygon(*tb, *tr, *br, *bb, border='white', borderWidth=0.3, fill='black') # draw right front
 
+        # indicate start and end constraint
+        # print(f'{tile.start, tile.end}')
+        startCube = app.tileSet.constraintDict[tile.start]
+        endCube = app.tileSet.constraintDict[tile.end]
+        # print(f'{tile.name, startCube, endCube}')
+        if tile.start != 0:
+            if (z,x,y) == startCube:
+                drawCircle(int(cx),int(cy), 3, fill='green') # start has green dot on bottom left corner
+        if tile.end != 0:
+            if (z,x,y) == endCube:
+                drawCircle(int(cx),int(cy), 3, fill='red') # end has red dot on top right corner
 
 def drawTileSet(app):
     ''' Draws tile set on left side of page'''
@@ -483,9 +561,9 @@ def drawTileSet(app):
     # ...
 
     # draw each tile
-    for i in range(len(app.tileSet)):
+    for i in range(len(app.tileSet.tiles)):
         # region for each tile
-        tile = app.tileSet[i]
+        tile = app.tileSet.tiles[i]
         row_i = i//3
         col_i = i%3
         px = l + col_i*1.25*ph_w+ph_w/2 # start + column index * (ph_w + 0.25*ph_(margin)) + ph_w/2
@@ -522,8 +600,6 @@ def drawTileBound(app, tile, b='lightSkyBlue', b_w=1, f=None, o=80, d=(1,3)):
     drawPolygon(*tt, *tr, *br, *bt, border=b, borderWidth=b_w, fill=f, opacity=o, dashes=d) # right back
 
 # 2. Tile 
-
-####################TODO: account for board rotation ###############
 
 def placeTileOnBoard(app, tile, l, r, c):
     ''' Given the board index l, r, c of tile,
@@ -603,7 +679,27 @@ def drawBoard(app):
         if x==rows-1 or app.board[z, x+1, y] != 1:
             drawPolygon(*tb, *tr, *br, *bb, border='white', borderWidth=0.3, fill='black') # draw right front
 
+    # go over tiles on board, draw start and end
+    tileInds = np.argwhere(app.board_tiles!=None)
+    for l,r,c in tileInds:
+        tile = app.board_tiles[l,r,c]
+        drawConstraints(app, tile)
 
+def drawConstraints(app, tile):
+    d = app.cubeDim
+    tx, ty = tileIndexToPixel(app, tile.l, tile.r, tile.c)
+    if tile.start != 0:
+        z,x,y = app.tileSet.constraintDict[tile.start] # board location of tile start
+        cx = tx + x*d - y*d 
+        cy = ty + z*d + x*d/2 + y*d/2
+        # bl = int(cx - d), int(cy + d)
+        drawCircle(int(cx), int(cy), 3, fill='green') # start has green dot on bottom left corner
+    if tile.end != 0:
+        z,x,y = app.tileSet.constraintDict[tile.end]   # board location of tile end
+        cx = tx + x*d - y*d 
+        cy = ty + z*d + x*d/2 + y*d/2
+        # tr = int(cx + d), int(cy - d)
+        drawCircle(int(cx), int(cy), 3, fill='red') # end has red dot on top right corner
 
 
 def drawMovingTile(app):
@@ -626,7 +722,7 @@ def drawTileOnBoard(app, tile, l, r, c):
         draw cubes according to tile map and bounding box
         Used to draw moving tile on board'''
     tx, ty = tileIndexToPixel(app, l, r, c)
-    if isTileLegalOnBoard(app, l, r, c):
+    if isTileLegalOnBoard(app, tile, l, r, c):
         drawTileBound(app, app.currentTile, b=None, f='green', o=20)
     else:
         drawTileBound(app, app.currentTile, b=None, f='red', o=20)
