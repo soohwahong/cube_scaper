@@ -1,3 +1,4 @@
+from operator import truediv
 from cmu_cs3_graphics import *
 import numpy as np
 import settings 
@@ -74,60 +75,13 @@ def onAppStart(app):
     app.currentLevel = 0
 
     # Path Finding
+    app.pathFinding = False
+    app.settingHome = False
+    app.settingDest = False
     app.home = None
-    app.goal = None
+    app.dest = None
 
 ## TODO : Set home and goal tile on board ##
-    
-
-
-########################TEST#################################
-    # TEST : create tileset and draw
-
-    # three_tile_full = np.array([
-    #     [[1,1,1],
-    #      [1,1,1],
-    #      [1,1,1]],
-    #     [[1,1,1],
-    #      [1,1,1],
-    #      [1,1,1]],
-    #     [[1,1,1],
-    #      [1,1,1],
-    #      [1,1,1]]
-    # ])
-    
-    # three_tile = np.array([
-    #     [[1,1,0],
-    #      [1,0,0],
-    #      [1,1,0]],
-    #     [[1,1,0],
-    #      [0,0,0],
-    #      [0,1,0]],
-    #     [[1,0,0],
-    #      [0,0,0],
-    #      [0,0,0]]
-    # ])
-    # test_tile = Tile("r0", 2, 3)
-    # test_tile.setMap(three_tile)
-    # # r1 = tile.Tile("r1")
-    # # r1.setMap(np.rot90(three_tile, 1, (2,1))) # counter clockwise
-    # # r2 = tile.Tile("r2")
-    # # r2.setMap(np.rot90(three_tile, 2, (2,1))) 
-    # # r3 = tile.Tile("r3")
-    # # r3.setMap(np.rot90(three_tile, 3, (2,1))) 
-    # # r4 = tile.Tile("r4")
-    # # r4.setMap(np.rot90(three_tile, 4, (2,1))) 
-
-    # # r1c = tile.Tile("r1c")
-    # # r1c.setMap(np.rot90(three_tile, 1, (1,2))) # clockwise
-
-    # # test_tileset = [test_tile] * 4 + [zero_tile] * 5
-    # test_tileset = [test_tile]
-    # app.tileSet = test_tileset
-
-
-
-
 
 ## Functions used on start
 
@@ -153,6 +107,20 @@ def onKeyPress(app, key):
     # Rotate board
     if (key == 'right'):
         rotateBoard(app)
+
+    # Setting home
+    if (key == 'h'):
+        app.settingHome = True
+        app.settingDest = False
+    
+    if key == 'd':
+        app.settingDest = True
+        app.settingHome = False
+
+    if key == 'p':
+        # pathFind(app)
+        app.pathFinding = True
+        
 
 def rotateBoard(app):
     ''' On right press, rotate the board
@@ -181,9 +149,20 @@ def onMousePress(app, mouseX, mouseY):
                 # place tile on board
                 placeTileOnBoard(app, app.currentTile, app.currentTile.l, app.currentTile.r, app.currentTile.c)
                 print(f'current board = \n{app.board_tiles}')
+                
+                # if setting home, placed tile is home
+                if app.settingHome:
+                    app.home = copy.deepcopy(app.currentTile)
+                if app.settingDest:
+                    app.dest = copy.deepcopy(app.currentTile)
+                app.settingHome = False
+                app.settingDest = False
+
                 # revert app attributes related to holding tile
                 app.currentTile = None
                 app.holdingTile = False
+
+
 
 
 
@@ -328,16 +307,25 @@ def redrawAll(app):
     drawTileSet(app)
 
     drawGrid(app)
-
     
+    if app.pathFinding:
+        pathFind(app)
     drawBoard(app) 
-
     drawLevelGrid(app)
-    
-    
     drawMovingTile(app)
+    drawStatusBar(app)
         
+
+def drawStatusBar(app):
+    ''' Writes messages and status of game on top of page'''
+    label = "Hello"
+    if app.settingHome:
+        label = "Pick a Home tile, rotate and drop it on the Board"
+    if app.settingDest:
+        label = "Pick a Destination tile, rotate and drop it on the Board"
     
+    drawLabel(label, 50, 25, size=16, font='montserrat', align='left')
+
 ## Isometric Functions ##
 def cartToIso(x, y):
     isoX = x - y
@@ -734,7 +722,6 @@ def drawMovingTile(app):
             drawTileOnBoard(app, app.currentTile, app.currentTile.l, app.currentTile.r, app.currentTile.c)
         
 
-
 def drawTileOnBoard(app, tile, l, r, c):
     '''Given Tile object, and board_tile index
         draw cubes according to tile map and bounding box
@@ -747,65 +734,54 @@ def drawTileOnBoard(app, tile, l, r, c):
     drawTileOnCanvas(app, tile, tx, ty)
 
 
-## Wave Function Collapse ##
-''' 
-1. Implement WFC
-    - Output board
-        - every tile on outbut board initialized with all (tile, rotation)
-    - Observed board
-        - keep track of locations that have been input
-    - Input tile 
-        - manually input
-        - from end nbr
-            - if nbr exists(preset constraints), check if match -> if not backtrack
-            - if nbr not exists, set neighbor that matches
-
-    *- Propogate (forward checking)
-        - for neighboring 6 location : nbr
-            - for each (tile,rotation) in output[nbr] eliminate non-possible 
-                - for nbr.start neighboring 3 sides, eliminate (tile, rotate)
-            - if any tile eliminated from nbr, check nbr's 3 nbrs until no change
-    
-    - Terminate
-        - generation (when no possible neighbors)
-        - maze (meet goal tile)
-    - check all 4 rotations for tile, if does not fit, eliminate
-    '''
-
+## Path Finding ##
 def pathFind(app):
     '''Given home tile and goal tile, 
        create sequence of tiles starting from home to goal'''
-    return pathFindHelper(app, app.home)
+    return pathFindHelper(app, app.home, 0)
 
-def pathFindHelper(app, current):
+def pathFindHelper(app, current, depth):
     ''' Given current tile, search neighbors for valid next tile 
         Recursively search next tile
         Backtrack if no possible next neighbor'''
     # for 3 neighbors of current, if (next, rotate) meets, place
     # if none of neighbors can meet, backtrack
     # goal state: next tile is goal and meets
+    print(f'\nFinding Path at depth {depth}..')
+    print(f'current = {current, current.l, current.r, current.c}')
+    nextTiles = getNextNeighbors(app, current) # list of 3 neighboring tile coordinates of current.end on board
+    print(f'next tiles = {nextTiles}')
     
-    l, r, c = current.l, current.r, current.c
-    nextTiles = getNextNeighbors(current) # list of 3 neighboring tile coordinates of current.end on board
+    if len(nextTiles) == 0: # back track
+        return None
     for nl, nr, nc in nextTiles: # for each neighboring location
-        if (nl, nr, nc) == app.goal : # goal state
-            if TilesMeet(current, app.goal):
-                print("Reached Goal!") 
-                return app.goal
+        if (nl, nr, nc) == (app.dest.l, app.dest.r, app.dest.c): # goal state
+            if TilesMeet(current, app.dest):
+                print("Reached Destination!") 
+                return app.dest
             else: return None
+        
         for t in app.tileSet.tiles: # for each tile type in tile set
-            next_tile = copy.deepcopy(t)
-            next_tile.l, next_tile.r, next_tile.c = nl,nr,nc
+            next = copy.deepcopy(t)
+            next.l, next.r, next.c = nl,nr,nc
             for r in range(4): # for each rotation
-                next_tile = next_tile.rotate()
-                if TilesMeet(current, next_tile): # if next tile meets with current, place next tile
-                    placeTileOnBoard(app, next_tile, next.l, next.r, next.c)
-                    res = pathFindHelper(app, next_tile)
+                print(f' - Checking next tile : {next, next.l, next.r, next.c, next.rotated}')
+                next.rotate()
+                if TilesMeet(current, next): # if next tile meets with current, place next tile
+                    print("tiles Meet!")
+                    placeTileOnBoard(app, next, next.l, next.r, next.c)
+                    # how to draw updated tile?
+                    drawBoard(app)
+                    drawLevelGrid(app)
+                    drawMovingTile(app)
+                    drawStatusBar(app)
+
+                    res = pathFindHelper(app, next, depth+1)
                     if res == None: 
-                        removeTileFromBoard(app, next_tile, next.l, next.r, next.c) # remove tile from board
-            return None
-            
-def getNextNeighbors(tile):
+                        removeTileFromBoard(app, next, next.l, next.r, next.c) # remove tile from board
+        return None
+
+def getNextNeighbors(app, tile):
     '''Given tile, 
        Return list of l,c,r coordinates of max 3 neighboring tiles of tile.end'''
     res = []
@@ -860,48 +836,81 @@ def locationValid(app,l,r,c):
     return True
     
         
-    
-    
 def TilesMeet(current, compare):
     '''Given two tiles current and compare, 
        check if current.end meets with compare.start'''
-    # print(f'Checking current:{current.name}, {current.l,current.r,current.c}, {current.start, current.end} & 
-    # compare:{compare.name}, {compare.l,compare.r,compare.c}, {compare.start, compare.end}')
+    print(f'Checking Adjacency ... \n Current:{current.name}, {current.l,current.r,current.c}, {current.start, current.end} & \
+    \n Compare:{compare.name}, {compare.l,compare.r,compare.c}, {compare.start, compare.end}')
     
     # two tiles have to be neighboring
     if abs(current.l-compare.l) + abs(current.r-compare.r) + abs(current.c-compare.c) != 1: 
         print("Two tiles do not meet!")
         return False
     if current.l - compare.l == 1: # current on top of compare
-        if current.end > 4: return False # current end on top side!
-        if compare.start - current.end != 4: return False
+        if current.end > 4: 
+            print('above')
+            return False # current end on top side!
+        if compare.start - current.end != 4: 
+            print("above diff")
+            return False
     if current.l - compare.l == -1: # current under compare
-        if current.end < 5: return False # current end on above side!
-        if current.end - compare.start != 3: return False
-    if current.r - compare.r == 1: # current on left side of compare
-        if current.end not in [2,3,6,7]: return False # current end on left side!
-        if current.end in [3,7]:
-            if compare.start != current.end+1: return False
-        if current.end in [2,6]:
-            if compare.start != current.end-1: return False
-    if current.r - compare.r == -1: # current on right side of compare
-        if current.end not in [1,4,5,8]: return False # current end on right side
+        if current.end < 5: 
+            print("under")
+            return False # current end on above side!
+        if current.end - compare.start != 3: 
+            print("under diff")
+            return False
+    
+    if current.r - compare.r == 1: # current on right side of compare
+        if current.end not in [1,4,5,8]: 
+            print("right")
+            return False # current end on left side
         if current.end in [1,5]:
-            if compare.start != current.end+1: return False
+            if compare.start != current.end+1: 
+                print("right diff1")
+                return False
         if current.end in [4,8]:
-            if compare.start != current.end-1: return False
+            if compare.start != current.end-1: 
+                print("right diff2")
+                return False
+    
+    if current.r - compare.r == -1: # current on left side of compare
+        if current.end not in [2,3,6,7]: 
+            print("left")
+            return False # current end on right side!
+        if current.end in [3,7]:
+            if compare.start != current.end+1:
+                print("left diff1")
+                return False
+        if current.end in [2,6]:
+            if compare.start != current.end-1: 
+                print("left diff2")
+                return False
+        
     if current.c - compare.c == 1: # current on front side of compare
-        if current.end not in [1,2,5,6]: return False # current end on left side!
+        if current.end not in [1,2,5,6]: 
+            print("front")
+            return False # current end on left side!
         if current.end in [2,6]:
-            if compare.start != current.end+1: return False
+            if compare.start != current.end+1: 
+                print("front diff1")
+                return False
         if current.end in [1,5]:
-            if compare.start != current.end+3: return False
+            if compare.start != current.end+3: 
+                print("front diff2")
+                return False
     if current.c - compare.c == -1: # current on back side of compare
-        if current.end not in [3,4,7,8]: return False # current end on right side
+        if current.end not in [3,4,7,8]: 
+            print("back")
+            return False # current end on right side
         if current.end in [3,7]:
-            if compare.start != current.end-1: return False
+            if compare.start != current.end-1: 
+                print("back diff1")
+                return False
         if current.end in [4,8]:
-            if compare.start != current.end-3: return False
+            if compare.start != current.end-3: 
+                print("back diff2")
+                return False
     return True
                 
 
