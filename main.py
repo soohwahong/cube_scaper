@@ -28,8 +28,7 @@ from wfc import *
 
 
 def onAppStart(app):
-
-    app.setMaxShapeCount(100000)
+    # app.setMaxShapeCount(100000)
 
     S = settings.getSettings()
     app.margin = S["margin"]
@@ -81,6 +80,8 @@ def onAppStart(app):
     app.home = None
     app.dest = None
 
+    app.running = True
+
 ## TODO : Set home and goal tile on board ##
 
 ## Functions used on start
@@ -120,6 +121,9 @@ def onKeyPress(app, key):
     if key == 'p':
         # pathFind(app)
         app.pathFinding = True
+    
+    if key == 'q':
+        app.running = False
         
 
 def rotateBoard(app):
@@ -303,17 +307,15 @@ def inPolygon(xq, yq, xv, yv):
 ## Draw
 def redrawAll(app):
     
-
     drawTileSet(app)
-
     drawGrid(app)
-    
-    if app.pathFinding:
-        pathFind(app)
-    drawBoard(app) 
-    drawLevelGrid(app)
-    drawMovingTile(app)
-    drawStatusBar(app)
+    if app.running:
+        if app.pathFinding:
+            pathFind(app)
+        drawBoard(app) 
+        drawLevelGrid(app)
+        drawMovingTile(app)
+        drawStatusBar(app)
         
 
 def drawStatusBar(app):
@@ -617,7 +619,7 @@ def removeTileFromBoard(app, tile, l, r, c):
     # revert app.board
     d = app.tileSize
     z, x, y = l*d, r*d, c*d
-    app.board[z:z+d, x:x+d, y:y+d] = np.zeros((app.tileSize, app.tileSize,app. tileSize))
+    app.board[z:z+d, x:x+d, y:y+d] = np.zeros((tile.size, tile.size, tile.size))
 
     # revert board_tiles
     if app.board_rotated == 0:
@@ -631,9 +633,9 @@ def removeTileFromBoard(app, tile, l, r, c):
 
     # revert tile assets
     # set tile location value
-    tile.onBoard = False
-    tile.l, tile.r, tile.c = -1, -1, -1
-    tile.px, tile.py = -1, -1 # clearing values if any
+    # tile.onBoard = False
+    # tile.l, tile.r, tile.c = -1, -1, -1
+    # tile.px, tile.py = -1, -1 # clearing values if any
     
 def drawGrid(app):
     ''' Draws isometric grid and tiles placed on board.
@@ -659,7 +661,8 @@ def drawGrid(app):
 
 def drawLevelGrid(app):
     level = app.currentLevel
-    drawIsoGridTiles(app, level, label=True, o=30, f='lightSkyBlue')
+    # drawIsoGridTiles(app, level, label=True, o=30, f='lightSkyBlue')
+    drawIsoGridTiles(app, level, label=True, o=100, f=None)
     drawIsoGridCubes(app, level*app.tileSize)
 
     
@@ -752,34 +755,47 @@ def pathFindHelper(app, current, depth):
     nextTiles = getNextNeighbors(app, current) # list of 3 neighboring tile coordinates of current.end on board
     print(f'next tiles = {nextTiles}')
     
+    # 
     if len(nextTiles) == 0: # back track
+        print('**We are returning none because no more neighbors')
+        removeTileFromBoard(app, current, current.l, current.r, current.c)
         return None
+    
     for nl, nr, nc in nextTiles: # for each neighboring location
         if (nl, nr, nc) == (app.dest.l, app.dest.r, app.dest.c): # goal state
             if TilesMeet(current, app.dest):
                 print("Reached Destination!") 
+                # app.pathFinding = False # cannot change app.pathFinding
                 return app.dest
-            else: return None
+            else: 
+                print('**We are returning none because destination was not met**\n')
+                removeTileFromBoard(app, current, current.l, current.r, current.c)
+                return None
         
         for t in app.tileSet.tiles: # for each tile type in tile set
             next = copy.deepcopy(t)
             next.l, next.r, next.c = nl,nr,nc
             for r in range(4): # for each rotation
-                print(f' - Checking next tile : {next, next.l, next.r, next.c, next.rotated}')
                 next.rotate()
                 if TilesMeet(current, next): # if next tile meets with current, place next tile
                     print("tiles Meet!")
+                    print(f'Placing {next, next.l, next.r, next.c}')
                     placeTileOnBoard(app, next, next.l, next.r, next.c)
-                    # how to draw updated tile?
+                    # Draw updated Tile
                     drawBoard(app)
                     drawLevelGrid(app)
                     drawMovingTile(app)
                     drawStatusBar(app)
 
+                    print(f'Next before recursion step is {next.name}, {next.l,next.r,next.c}')
                     res = pathFindHelper(app, next, depth+1)
-                    if res == None: 
+                    print(f'Next after recursion step is {next.name}, {next.l,next.r,next.c}')
+                    if res == app.dest: return app.dest
+                    elif res == None: 
+                        print(f'Removing {next, next.l, next.r, next.c}')
                         removeTileFromBoard(app, next, next.l, next.r, next.c) # remove tile from board
         return None
+
 
 def getNextNeighbors(app, tile):
     '''Given tile, 
@@ -839,8 +855,9 @@ def locationValid(app,l,r,c):
 def TilesMeet(current, compare):
     '''Given two tiles current and compare, 
        check if current.end meets with compare.start'''
-    print(f'Checking Adjacency ... \n Current:{current.name}, {current.l,current.r,current.c}, {current.start, current.end} & \
-    \n Compare:{compare.name}, {compare.l,compare.r,compare.c}, {compare.start, compare.end}')
+    print(f'Checking Adjacency ... \
+        \n--Current:{current.name}, {current.l,current.r,current.c} & \
+        \n--Compare:{compare.name}, {compare.l,compare.r,compare.c}')
     
     # two tiles have to be neighboring
     if abs(current.l-compare.l) + abs(current.r-compare.r) + abs(current.c-compare.c) != 1: 
