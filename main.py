@@ -121,6 +121,8 @@ def onKeyPress(app, key):
         else:
             print("Found path!")
         # app.pathFinding = True
+        if key == 'm':
+            moveThruPath(app)
 
     if key == 'r':
         clearBoard(app)
@@ -136,7 +138,9 @@ def clearBoard(app):
     app.board_tiles = np.empty((app.levels, app.rows, app.cols), dtype=object)
     app.board = np.zeros((app.levels*app.tileSize, app.rows*app.tileSize, app.cols*app.tileSize)) 
     
-
+## Implement for post MVP ##
+def moveThruPath(app):
+    return 42
     
         
 
@@ -787,11 +791,6 @@ def pathFindHelper(app, current, depth):
                     if TilesMeet(current, next):
                         print(f'Placing {next, next.l, next.r, next.c}')
                         placeTileOnBoard(app, next, next.l, next.r, next.c)
-                        # Draw updated Tile
-                        # drawBoard(app)
-                        # drawLevelGrid(app)
-                        # drawMovingTile(app)
-                        # drawStatusBar(app)
                         res = pathFindHelper(app, next, depth+1)
                         if res == app.dest: return app.dest
                         else:
@@ -799,53 +798,6 @@ def pathFindHelper(app, current, depth):
         
             return None
 
-
-
-    
-    # for 3 neighbors of current, if (next, rotate) meets, place
-    # if none of neighbors can meet, backtrack
-    # goal state: next tile is goal and meets
-    
-    # 
-    # if len(nextTiles) == 0: # back track
-    #     print('**We are returning none because no more neighbors')
-    #     removeTileFromBoard(app, current, current.l, current.r, current.c)
-    #     return None
-    
-    # for nl, nr, nc in nextTiles: # for each neighboring location
-    #     if (nl, nr, nc) == (app.dest.l, app.dest.r, app.dest.c): # goal state
-    #         if TilesMeet(current, app.dest):
-    #             print("Reached Destination!") 
-    #             # app.pathFinding = False # cannot change app.pathFinding
-    #             return app.dest
-    #         else: 
-    #             print('**We are returning none because destination was not met**\n')
-    #             removeTileFromBoard(app, current, current.l, current.r, current.c)
-    #             return None
-        
-    #     for t in app.tileSet.tiles: # for each tile type in tile set
-    #         next = copy.deepcopy(t)
-    #         next.l, next.r, next.c = nl,nr,nc
-    #         for r in range(4): # for each rotation
-    #             next.rotate()
-    #             if TilesMeet(current, next): # if next tile meets with current, place next tile
-    #                 print("tiles Meet!")
-    #                 print(f'Placing {next, next.l, next.r, next.c}')
-    #                 placeTileOnBoard(app, next, next.l, next.r, next.c)
-    #                 # Draw updated Tile
-    #                 drawBoard(app)
-    #                 drawLevelGrid(app)
-    #                 drawMovingTile(app)
-    #                 drawStatusBar(app)
-
-    #                 print(f'Next before recursion step is {next.name}, {next.l,next.r,next.c}')
-    #                 res = pathFindHelper(app, next, depth+1)
-    #                 print(f'Next after recursion step is {next.name}, {next.l,next.r,next.c}')
-    #                 if res == app.dest: return app.dest
-    #                 elif res == None: 
-    #                     print(f'Removing {next, next.l, next.r, next.c}')
-    #                     removeTileFromBoard(app, next, next.l, next.r, next.c) # remove tile from board
-    #     return None
 
 def getPreviousNeighbors(app, tile):
     '''Given tile, 
