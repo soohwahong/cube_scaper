@@ -145,8 +145,8 @@ def onKeyPress(app, key):
     if app.holdingTile:
         if key == 'r':
             app.currentTile.rotate()
-            print(f'{app.currentTile.name} is rotated {app.currentTile.rotated} \
-                and start, end is {app.currentTile.start, app.currentTile.end}')
+            # print(f'{app.currentTile.name} is rotated {app.currentTile.rotated} \
+            #     and start, end is {app.currentTile.start, app.currentTile.end}')
 
     # Control Level guide
     if (key == 'up') and (app.currentLevel<app.levels-1):
@@ -259,46 +259,54 @@ def isTileLegalOnBoard(app, tile, l, r, c):
 
     return True
 
+# def checkNextTile(app, tile,l,r,c):
+#     ''' Checks 3 neighbors of end cube of current tile, 
+#         if all 3 neighbors are full, 
+#         at least one next.start should meet current.end''' 
+#     return 42
+
 def checkPreviousTile(app, tile,l,r,c):
     '''Checks 3 neighbors of start cube of current tile,
        if previous tile exists, previous.end must meet current.start'''
+    # print(f'Checking previous tile for {tile.name}, {l,r,c}, {tile.start, tile.end}')
     # start is at bottom side cube
     if tile.start == 4:
         if c<app.cols-1 and (app.board_tiles[l,r,c+1] != None) and (app.board_tiles[l,r,c+1].end != 1): return False # column direction
-        if r>1 and (app.board_tiles[l,r-1,c] != None) and (app.board_tiles[l,r-1,c].end != 3): return False # row direction
-        if l>1 and (app.board_tiles[l-1,r,c] != None) and (app.board_tiles[l-1,r,c].end != 8): return False # level direction
-    if tile.start == 3:
+        if r>=1 and (app.board_tiles[l,r-1,c] != None) and (app.board_tiles[l,r-1,c].end != 3): return False # row direction
+        if l>=1 and (app.board_tiles[l-1,r,c] != None) and (app.board_tiles[l-1,r,c].end != 8): return False # level direction
+    elif tile.start == 3:
         if c<app.cols-1 and (app.board_tiles[l,r,c+1] != None) and (app.board_tiles[l,r,c+1].end != 2): return False # column direction
         if r<app.rows-1 and (app.board_tiles[l,r+1,c] != None) and (app.board_tiles[l,r+1,c].end != 4): return False # row direction
-        if l>1 and (app.board_tiles[l-1,r,c] != None) and (app.board_tiles[l-1,r,c].end != 7): return False # level direction
-    # if tile.start == 2:
-    #     if c<app.cols-1 and (app.board_tiles[l,r,c+1] != None) and (app.board_tiles[l,r,c+1].end != 1): return False # column direction
-    #     if r>1 and (app.board_tiles[l,r-1,c] != None) and (app.board_tiles[l,r-1,c].end != 3): return False # row direction
-    #     if l>1 and (app.board_tiles[l-1,r,c] != None) and (app.board_tiles[l-1,r,c].end != 8): return False # level direction
-    # if tile.start == 1:
-    #     if c<app.cols-1 and (app.board_tiles[l,r,c+1] != None) and (app.board_tiles[l,r,c+1].end != 1): return False # column direction
-    #     if r>1 and (app.board_tiles[l,r-1,c] != None) and (app.board_tiles[l,r-1,c].end != 3): return False # row direction
-    #     if l>1 and (app.board_tiles[l-1,r,c] != None) and (app.board_tiles[l-1,r,c].end != 8): return False # level direction
-    # # start is at top cube
-    # if tile.start == 8:
-    #     if c<app.cols-1 and (app.board_tiles[l,r,c+1] != None) and (app.board_tiles[l,r,c+1].end != 1): return False # column direction
-    #     if r>1 and (app.board_tiles[l,r-1,c] != None) and (app.board_tiles[l,r-1,c].end != 3): return False # row direction
-    #     if l>1 and (app.board_tiles[l-1,r,c] != None) and (app.board_tiles[l-1,r,c].end != 8): return False # level direction
-    # if tile.start == 7:
-    #     if c<app.cols-1 and (app.board_tiles[l,r,c+1] != None) and (app.board_tiles[l,r,c+1].end != 1): return False # column direction
-    #     if r>1 and (app.board_tiles[l,r-1,c] != None) and (app.board_tiles[l,r-1,c].end != 3): return False # row direction
-    #     if l>1 and (app.board_tiles[l-1,r,c] != None) and (app.board_tiles[l-1,r,c].end != 8): return False # level direction
-    # if tile.start == 6:
-    #     if c<app.cols-1 and (app.board_tiles[l,r,c+1] != None) and (app.board_tiles[l,r,c+1].end != 1): return False # column direction
-    #     if r>1 and (app.board_tiles[l,r-1,c] != None) and (app.board_tiles[l,r-1,c].end != 3): return False # row direction
-    #     if l>1 and (app.board_tiles[l-1,r,c] != None) and (app.board_tiles[l-1,r,c].end != 8): return False # level direction
-    # if tile.start == 5:
-    #     if c<app.cols-1 and (app.board_tiles[l,r,c+1] != None) and (app.board_tiles[l,r,c+1].end != 1): return False # column direction
-    #     if r>1 and (app.board_tiles[l,r-1,c] != None) and (app.board_tiles[l,r-1,c].end != 3): return False # row direction
-    #     if l>1 and (app.board_tiles[l-1,r,c] != None) and (app.board_tiles[l-1,r,c].end != 8): return False # level direction
-
+        if l>=1 and (app.board_tiles[l-1,r,c] != None) and (app.board_tiles[l-1,r,c].end != 7): return False # level direction
+    elif tile.start == 2:
+        if c>=1 and (app.board_tiles[l,r,c-1] != None) and (app.board_tiles[l,r,c-1].end != 3): return False # column direction
+        if r<app.rows-1 and (app.board_tiles[l,r+1,c] != None) and (app.board_tiles[l,r+1,c].end != 1): return False # row direction
+        if l>=1 and (app.board_tiles[l-1,r,c] != None) and (app.board_tiles[l-1,r,c].end != 6): return False # level direction
+    elif tile.start == 1:
+        if c>=1 and (app.board_tiles[l,r,c-1] != None) and (app.board_tiles[l,r,c-1].end != 4): return False # column direction
+        if r>=1 and (app.board_tiles[l,r-1,c] != None) and (app.board_tiles[l,r-1,c].end != 2): return False # row direction
+        if l>=1 and (app.board_tiles[l-1,r,c] != None) and (app.board_tiles[l-1,r,c].end != 5): return False # level direction
+    # start is at top cube
+    elif tile.start == 8:
+        if c<app.cols-1 and (app.board_tiles[l,r,c+1] != None) and (app.board_tiles[l,r,c+1].end != 5): return False # column direction
+        if r>=1 and (app.board_tiles[l,r-1,c] != None) and (app.board_tiles[l,r-1,c].end != 7): return False # row direction
+        if l<app.levels and (app.board_tiles[l+1,r,c] != None) and (app.board_tiles[l+1,r,c].end != 4): return False # level direction
+    elif tile.start == 7:
+        if c<app.cols-1 and (app.board_tiles[l,r,c+1] != None) and (app.board_tiles[l,r,c+1].end != 6): return False # column direction
+        if r<app.rows-1 and (app.board_tiles[l,r+1,c] != None) and (app.board_tiles[l,r+1,c].end != 8): return False # row direction
+        if l<app.levels and (app.board_tiles[l+1,r,c] != None) and (app.board_tiles[l+1,r,c].end != 3): return False # level direction
+    elif tile.start == 6:
+        if c>=1 and (app.board_tiles[l,r,c-1] != None) and (app.board_tiles[l,r,c-1].end != 7): return False # column direction
+        if r<app.rows-1 and (app.board_tiles[l,r+1,c] != None) and (app.board_tiles[l,r+1,c].end != 5): return False # row direction
+        if l<app.levels and (app.board_tiles[l+1,r,c] != None) and (app.board_tiles[l+1,r,c].end != 2): return False # level direction
+    elif tile.start == 5:
+        if c>=1 and (app.board_tiles[l,r,c-1] != None) and (app.board_tiles[l,r,c-1].end != 8): return False # column direction
+        if r>=1 and (app.board_tiles[l,r-1,c] != None) and (app.board_tiles[l,r-1,c].end != 6): return False # row direction
+        if l<app.levels and (app.board_tiles[l+1,r,c] != None) and (app.board_tiles[l+1,r,c].end != 1): return False # level direction
     
     return True
+
+    
 
     
 
