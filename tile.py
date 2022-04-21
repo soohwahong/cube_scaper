@@ -59,5 +59,17 @@ class Tile:
         elif self.end == 4: self.end = 1
         else:
             self.end += 1
+
+    def __eq__(self, other):
+        if (
+            isinstance(other, Tile) \
+            and (self.name == other.name) \
+            and (self.l == other.l)
+            and (self.r == other.r)
+            and (self.c == other.c)
+            ):
+            return True
+        else:
+            return False
     
     
