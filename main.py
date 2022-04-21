@@ -5,6 +5,7 @@ from tile import *
 import copy
 from matplotlib import path
 from tileSetA import *
+from wfc import *
 
 ''' Resources 
     1. Isometric Projection
@@ -25,17 +26,6 @@ from tileSetA import *
     '''
 
 
-
-'''
-TODO
-0. Check adjacency implement
-1. create tile set with start and end 
-2. rotate tile changes start and end
-3. adjacency rules depend on start and end
-
-4. Implement WFC
-
-'''
 def onAppStart(app):
 
     app.setMaxShapeCount(100000)
@@ -82,6 +72,12 @@ def onAppStart(app):
 
     # drawing reference
     app.currentLevel = 0
+
+    # Path Finding
+    app.home = None
+    app.goal = None
+
+## TODO : Set home and goal tile on board ##
     
 
 
@@ -211,7 +207,7 @@ def onMouseMove(app, mouseX, mouseY):
             app.currentTile.onBoard = False
             app.currentTile.l, app.currentTile.r, app.currentTile.c = -1, -1, -1
                 # set tile location to mouse
-                # draw *bottom side left cube* of current tile on mouse position(to visualize better!)
+                # draw *above side left cube* of current tile on mouse position(to visualize better!)
             app.currentTile.px, app.currentTile.py = mouseX+app.tileDim, mouseY-app.tileDim//2
 
 
@@ -251,7 +247,7 @@ def isTileLegalOnBoard(app, tile, l, r, c):
         (there isn't any existing tile on board
          and meets adjacency constraints with neighboring tiles (3 previous, 3 next tiles)'''
     # Checks existing
-    if app.board_tiles[l,r,c] == 1: return False
+    if app.board_tiles[l,r,c] != None: return False
 
     # Checks adjacency
     if checkPreviousTile(app, tile,l,r,c) == False : return False
@@ -269,7 +265,7 @@ def checkPreviousTile(app, tile,l,r,c):
     '''Checks 3 neighbors of start cube of current tile,
        if previous tile exists, previous.end must meet current.start'''
     # print(f'Checking previous tile for {tile.name}, {l,r,c}, {tile.start, tile.end}')
-    # start is at bottom side cube
+    # start is at above side cube
     if tile.start == 4:
         if c<app.cols-1 and (app.board_tiles[l,r,c+1] != None) and (app.board_tiles[l,r,c+1].end != 1): return False # column direction
         if r>=1 and (app.board_tiles[l,r-1,c] != None) and (app.board_tiles[l,r-1,c].end != 3): return False # row direction
@@ -307,11 +303,6 @@ def checkPreviousTile(app, tile,l,r,c):
     return True
 
     
-
-    
-
-
-
 def inPolygon(xq, yq, xv, yv):
         ''' xv, yv are 1d numpy arrays of coordinates that form polygon
             xq, yq are 1d numpy arrays of points that are being evaluated
@@ -348,7 +339,6 @@ def redrawAll(app):
         
     
 ## Isometric Functions ##
-
 def cartToIso(x, y):
     isoX = x - y
     isoY = (x+y)*0.5
@@ -387,7 +377,7 @@ def cubeIndexToPixel(app, z, x, y):
 
       
 def drawIsoCube(px, py, w, d, h): ###### NO USE
-    ''' Given pixel location ix,iy of bottom top point of cube,
+    ''' Given pixel location ix,iy of above top point of cube,
         and dimension of cube, draw cube on canvas'''
     # get 6 points of cube by
     # level + 1 changes py -> py+h 
@@ -396,7 +386,7 @@ def drawIsoCube(px, py, w, d, h): ###### NO USE
     bt, br, bb, bl = getCornerPointsIsoRect(px, py, w, d)
     # Transparent
     # drawPolygon(*tt, *tr, *tb, *tl, border='black', borderWidth=0.5, opacity=30) # top
-    # drawPolygon(*tt, *tr, *tb, *tl, border='black', borderWidth=0.5, fill=None) # bottom
+    # drawPolygon(*tt, *tr, *tb, *tl, border='black', borderWidth=0.5, fill=None) # above
     # drawPolygon(*tl, *bl, *bb, *tb, border='black', borderWidth=0.5, opacity=50) # left front
     # drawPolygon(*tb, *tr, *br, *bb, border='black', borderWidth=0.5, opacity=80) # right front
     # drawPolygon(*tl, *tt, *bt, *bl, border='grey', dashes=(2,4), borderWidth=0.5, fill=None) # left back
@@ -404,7 +394,7 @@ def drawIsoCube(px, py, w, d, h): ###### NO USE
 
     # Opaque
     drawPolygon(*tt, *tr, *tb, *tl, border='black', borderWidth=0.3, fill='white') # top
-    # drawPolygon(*tt, *tr, *tb, *tl, border='black', borderWidth=0.3, fill=None) # bottom
+    # drawPolygon(*tt, *tr, *tb, *tl, border='black', borderWidth=0.3, fill=None) # above
     drawPolygon(*tl, *bl, *bb, *tb, border='black', borderWidth=0.3, fill='gray') # left front
     drawPolygon(*tb, *tr, *br, *bb, border='white', borderWidth=0.3, fill='black') # right front
 
@@ -413,7 +403,7 @@ def getCornerPointsIsoRect(ix, iy, w, h):
     ''' Given pixel coordinate of top point of iso rectangle cx, cy
         and width and height of cartesian rectangle
         return coordinates of four corners of isometric rectangle
-        in order of top, right, bottom, left '''
+        in order of top, right, above, left '''
     # # points in clockwise order
     # 1 2
     # 4 3
@@ -523,7 +513,7 @@ def drawTileOnCanvas(app, tile, px, py):
     cubeInds = np.argwhere(tile.map == 1)
     for z,x,y in cubeInds:
         # print(f'drawing tiles... {l} {r} {c} of tile map')
-        # pixel coordinate of cube origin (bottom top)
+        # pixel coordinate of cube origin (above top)
         cx = px + x*d - y*d 
         cy = py - z*d + x*d/2 + y*d/2
 
@@ -545,7 +535,7 @@ def drawTileOnCanvas(app, tile, px, py):
         # print(f'{tile.name, startCube, endCube}')
         if tile.start != 0:
             if (z,x,y) == startCube:
-                drawCircle(int(cx),int(cy), 3, fill='green') # start has green dot on bottom left corner
+                drawCircle(int(cx),int(cy), 3, fill='green') # start has green dot on above left corner
         if tile.end != 0:
             if (z,x,y) == endCube:
                 drawCircle(int(cx),int(cy), 3, fill='red') # end has red dot on top right corner
@@ -559,7 +549,7 @@ def drawTileSet(app):
     # region for each tile
     tile_margin = 10
     l, t = app.tileWin_l+tile_margin, app.tileWin_t+tile_margin # left top of start drawing
-    r, b = app.tileWin_l+app.tileWin_w-tile_margin, app.tileWin_t+app.tileWin_h-tile_margin # right, bottom
+    r, b = app.tileWin_l+app.tileWin_w-tile_margin, app.tileWin_t+app.tileWin_h-tile_margin # right, above
     w, h = r-l, b-t
     ph_w, ph_h = w/3.5, h/3.5
     # 3*3 place holders, margin is 0.25 * tileph_w / tileph_h, total 3.5 spaces
@@ -601,7 +591,7 @@ def drawTileBound(app, tile, b='lightSkyBlue', b_w=1, f=None, o=80, d=(1,3)):
     bt, br, bb, bl = getCornerPointsIsoRect(tile.px, tile.py, app.tileDim, app.tileDim)
     # Transparent
     drawPolygon(*tt, *tr, *tb, *tl, border=b, borderWidth=b_w, fill=f, opacity=o, dashes=d) # top
-    drawPolygon(*tt, *tr, *tb, *tl, border=b, borderWidth=b_w, fill=f, opacity=o, dashes=d) # bottom
+    drawPolygon(*tt, *tr, *tb, *tl, border=b, borderWidth=b_w, fill=f, opacity=o, dashes=d) # above
     drawPolygon(*tl, *bl, *bb, *tb, border=b, borderWidth=b_w, fill=f, opacity=o, dashes=d) # left front
     drawPolygon(*tb, *tr, *br, *bb, border=b, borderWidth=b_w, fill=f, opacity=o, dashes=d) # right front
     drawPolygon(*tl, *tt, *bt, *bl, border=b, borderWidth=b_w, fill=f, opacity=o, dashes=d) # left back
@@ -621,7 +611,6 @@ def placeTileOnBoard(app, tile, l, r, c):
     app.board[z:z+d, x:x+d, y:y+d] = tile.map
     
     # place on board_tiles
-    # app.board_tiles[l,r,c] = 1
     if app.board_rotated == 0:
         app.board_tiles[l,r,c] = tile
     elif app.board_rotated == 1:
@@ -636,6 +625,28 @@ def placeTileOnBoard(app, tile, l, r, c):
     tile.l, tile.r, tile.c = l, r, c
     tile.px, tile.py = -1, -1 # clearing values if any
 
+def removeTileFromBoard(app, tile, l, r, c):
+    # revert app.board
+    d = app.tileSize
+    z, x, y = l*d, r*d, c*d
+    app.board[z:z+d, x:x+d, y:y+d] = np.zeros((app.tileSize, app.tileSize,app. tileSize))
+
+    # revert board_tiles
+    if app.board_rotated == 0:
+        app.board_tiles[l,r,c] = None
+    elif app.board_rotated == 1:
+        app.board_tiles[l, c, app.rows-1-r] = None
+    elif app.board_rotated == 2:
+        app.board_tiles[l, app.rows-1-r, app.cols-1-c] = None
+    elif app.board_rotated == 3:
+        app.board_tiles[l, app.cols-1-c, r] = None
+
+    # revert tile assets
+    # set tile location value
+    tile.onBoard = False
+    tile.l, tile.r, tile.c = -1, -1, -1
+    tile.px, tile.py = -1, -1 # clearing values if any
+    
 def drawGrid(app):
     ''' Draws isometric grid and tiles placed on board.
         Draw only those faces from cube on board that are visable from view.
@@ -701,7 +712,7 @@ def drawConstraints(app, tile):
         cx = tx + x*d - y*d 
         cy = ty + z*d + x*d/2 + y*d/2
         # bl = int(cx - d), int(cy + d)
-        drawCircle(int(cx), int(cy), 3, fill='green') # start has green dot on bottom left corner
+        drawCircle(int(cx), int(cy), 3, fill='green') # start has green dot on above left corner
     if tile.end != 0:
         z,x,y = app.tileSet.constraintDict[tile.end]   # board location of tile end
         cx = tx + x*d - y*d 
@@ -714,7 +725,7 @@ def drawMovingTile(app):
     ''' Draw moving tile when holding tile
         when on board, draw tile on board with snap and draw shadow
         when not on board, draw on mouse'''
-    # if holding tile, draw current tile *bottom side left cube* on mouse position
+    # if holding tile, draw current tile *above side left cube* on mouse position
     # (to visualize better!)
     if app.holdingTile:
         if not app.currentTile.onBoard: # not on board
@@ -723,7 +734,6 @@ def drawMovingTile(app):
             drawTileOnBoard(app, app.currentTile, app.currentTile.l, app.currentTile.r, app.currentTile.c)
         
 
-    # add rotation?
 
 def drawTileOnBoard(app, tile, l, r, c):
     '''Given Tile object, and board_tile index
@@ -735,6 +745,165 @@ def drawTileOnBoard(app, tile, l, r, c):
     else:
         drawTileBound(app, app.currentTile, b=None, f='red', o=20)
     drawTileOnCanvas(app, tile, tx, ty)
+
+
+## Wave Function Collapse ##
+''' 
+1. Implement WFC
+    - Output board
+        - every tile on outbut board initialized with all (tile, rotation)
+    - Observed board
+        - keep track of locations that have been input
+    - Input tile 
+        - manually input
+        - from end nbr
+            - if nbr exists(preset constraints), check if match -> if not backtrack
+            - if nbr not exists, set neighbor that matches
+
+    *- Propogate (forward checking)
+        - for neighboring 6 location : nbr
+            - for each (tile,rotation) in output[nbr] eliminate non-possible 
+                - for nbr.start neighboring 3 sides, eliminate (tile, rotate)
+            - if any tile eliminated from nbr, check nbr's 3 nbrs until no change
+    
+    - Terminate
+        - generation (when no possible neighbors)
+        - maze (meet goal tile)
+    - check all 4 rotations for tile, if does not fit, eliminate
+    '''
+
+def pathFind(app):
+    '''Given home tile and goal tile, 
+       create sequence of tiles starting from home to goal'''
+    return pathFindHelper(app, app.home)
+
+def pathFindHelper(app, current):
+    ''' Given current tile, search neighbors for valid next tile 
+        Recursively search next tile
+        Backtrack if no possible next neighbor'''
+    # for 3 neighbors of current, if (next, rotate) meets, place
+    # if none of neighbors can meet, backtrack
+    # goal state: next tile is goal and meets
+    
+    l, r, c = current.l, current.r, current.c
+    nextTiles = getNextNeighbors(current) # list of 3 neighboring tile coordinates of current.end on board
+    for nl, nr, nc in nextTiles: # for each neighboring location
+        if (nl, nr, nc) == app.goal : # goal state
+            if TilesMeet(current, app.goal):
+                print("Reached Goal!") 
+                return app.goal
+            else: return None
+        for t in app.tileSet.tiles: # for each tile type in tile set
+            next_tile = copy.deepcopy(t)
+            next_tile.l, next_tile.r, next_tile.c = nl,nr,nc
+            for r in range(4): # for each rotation
+                next_tile = next_tile.rotate()
+                if TilesMeet(current, next_tile): # if next tile meets with current, place next tile
+                    placeTileOnBoard(app, next_tile, next.l, next.r, next.c)
+                    res = pathFindHelper(app, next_tile)
+                    if res == None: 
+                        removeTileFromBoard(app, next_tile, next.l, next.r, next.c) # remove tile from board
+            return None
+            
+def getNextNeighbors(tile):
+    '''Given tile, 
+       Return list of l,c,r coordinates of max 3 neighboring tiles of tile.end'''
+    res = []
+    back  = (tile.l, tile.r, tile.c-1)
+    front = (tile.l, tile.r, tile.c+1)
+    left  = (tile.l, tile.r-1, tile.c)
+    right = (tile.l, tile.r+1, tile.c)
+    under = (tile.l-1, tile.r, tile.c)
+    above = (tile.l+1, tile.r, tile.c)
+
+    if tile.end == 1: # back, left, under
+        if locationValid(app,*back): res.append(back)
+        if locationValid(app,*left): res.append(left)
+        if locationValid(app,*under): res.append(under)
+    if tile.end == 2: # back, right, under
+        if locationValid(app,*back): res.append(back)
+        if locationValid(app,*right): res.append(right)
+        if locationValid(app,*under): res.append(under)
+    if tile.end == 3: # front, right, under
+        if locationValid(app,*front): res.append(front)
+        if locationValid(app,*right): res.append(right)
+        if locationValid(app,*under): res.append(under)
+    if tile.end == 4: # front, left, under
+        if locationValid(app,*front): res.append(front)
+        if locationValid(app,*left): res.append(left)
+        if locationValid(app,*under): res.append(under)
+    if tile.end == 5: # back, left, above
+        if locationValid(app,*back): res.append(back)
+        if locationValid(app,*left): res.append(left)
+        if locationValid(app,*above): res.append(above)
+    if tile.end == 6: # back, right, above
+        if locationValid(app,*back): res.append(back)
+        if locationValid(app,*right): res.append(right)
+        if locationValid(app,*above): res.append(above)
+    if tile.end == 7: # front, right, above
+        if locationValid(app,*front): res.append(front)
+        if locationValid(app,*right): res.append(right)
+        if locationValid(app,*above): res.append(above)
+    if tile.end == 8: # front, left, above
+        if locationValid(app,*front): res.append(front)
+        if locationValid(app,*left): res.append(left)
+        if locationValid(app,*above): res.append(above)
+    
+    return res
+
+def locationValid(app,l,r,c):
+    ''' Helper function for getNextNeighbor.
+        Check if all values of l,r,c are within board'''
+    if l<0 or app.levels<=l: return False
+    if r<0 or app.rows<=r: return False
+    if c<0 or app.cols<=c: return False
+    return True
+    
+        
+    
+    
+def TilesMeet(current, compare):
+    '''Given two tiles current and compare, 
+       check if current.end meets with compare.start'''
+    # print(f'Checking current:{current.name}, {current.l,current.r,current.c}, {current.start, current.end} & 
+    # compare:{compare.name}, {compare.l,compare.r,compare.c}, {compare.start, compare.end}')
+    
+    # two tiles have to be neighboring
+    if abs(current.l-compare.l) + abs(current.r-compare.r) + abs(current.c-compare.c) != 1: 
+        print("Two tiles do not meet!")
+        return False
+    if current.l - compare.l == 1: # current on top of compare
+        if current.end > 4: return False # current end on top side!
+        if compare.start - current.end != 4: return False
+    if current.l - compare.l == -1: # current under compare
+        if current.end < 5: return False # current end on above side!
+        if current.end - compare.start != 3: return False
+    if current.r - compare.r == 1: # current on left side of compare
+        if current.end not in [2,3,6,7]: return False # current end on left side!
+        if current.end in [3,7]:
+            if compare.start != current.end+1: return False
+        if current.end in [2,6]:
+            if compare.start != current.end-1: return False
+    if current.r - compare.r == -1: # current on right side of compare
+        if current.end not in [1,4,5,8]: return False # current end on right side
+        if current.end in [1,5]:
+            if compare.start != current.end+1: return False
+        if current.end in [4,8]:
+            if compare.start != current.end-1: return False
+    if current.c - compare.c == 1: # current on front side of compare
+        if current.end not in [1,2,5,6]: return False # current end on left side!
+        if current.end in [2,6]:
+            if compare.start != current.end+1: return False
+        if current.end in [1,5]:
+            if compare.start != current.end+3: return False
+    if current.c - compare.c == -1: # current on back side of compare
+        if current.end not in [3,4,7,8]: return False # current end on right side
+        if current.end in [3,7]:
+            if compare.start != current.end-1: return False
+        if current.end in [4,8]:
+            if compare.start != current.end-3: return False
+    return True
+                
 
 def main():
     runApp(1200, 600)
