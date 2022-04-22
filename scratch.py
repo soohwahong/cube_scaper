@@ -15,7 +15,7 @@ map = np.array(map)
 # print(f'shape is {np.shape(map)}')
 # print(f'1s are at {np.where(map == 1)}')
 # print(f'1s are at (argwhere format) {np.argwhere(map == 1)}')
-print(f'all array (argwhere format with no condition) {np.argwhere(((map==0) | (map==1)))}')
+# print(f'all array (argwhere format with no condition) {np.argwhere(((map==0) | (map==1)))}')
 # print(f'all array (argwhere format with no condition) {map.argwhere(0 or 1)}') 'numpy.ndarray' object has no attribute 'argwhere'
 # cubeInds = np.argwhere(map == 1)
 # for l,r,c in cubeInds:
@@ -56,7 +56,7 @@ x.dtype
 
 # replace part of array
 full_five = np.zeros((5,5,5))
-print(f'Original: \n{full_five}')
+# print(f'Original: \n{full_five}')
 replace = np.array([
     [1,1,1],
     [1,1,1],
@@ -64,5 +64,8 @@ replace = np.array([
 ])
 a, b, c = 0, 1, 2
 full_five[a:a+3, b:b+3, c:c+3] = replace
-print(f'After replacing:\n{full_five}')
+# print(f'After replacing:\n{full_five}')
 
+
+a = None
+print( a!=None and a.x == 2)

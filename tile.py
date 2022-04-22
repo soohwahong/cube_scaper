@@ -14,7 +14,7 @@ class TileSet:
 
 class Tile:
     ''' Create tile with adjacency rules'''
-    def __init__(self, name, start, end):
+    def __init__(self, name, start=0, end=0):
         self.name = name
         self.size = S["tileSize"]
         self.map = np.zeros((self.size, self.size, self.size)) # z, y, x should be z, x, y!
@@ -33,8 +33,30 @@ class Tile:
         self.start = start
         self.end = end
 
+        # adjacency contraints
+        self.adjTop = []
+        self.adjLeft = []
+        self.adjRight = []
+        self.adjBottom = []
+        self.adjAbove = []
+        self.adjUnder = []
+
     def __repr__(self):
-        return f'{self.name}({self.rotated})'
+        # return f'{self.name}({self.rotated})'
+        return self.name
+
+
+    def __eq__(self, other):
+        if (
+            isinstance(other, Tile) \
+            and (self.name == other.name) \
+            and (self.l == other.l)
+            and (self.r == other.r)
+            and (self.c == other.c)
+            ):
+            return True
+        else:
+            return False
 
     def setMap(self, arr):
         a_dim = arr.shape
@@ -42,6 +64,13 @@ class Tile:
         if a_dim != (self.size, self.size, self.size):
             raise ValueError(f"array size should be {(self.size, self.size, self.size)}!")
         self.map = arr
+    
+    def rotate(self):
+        pass
+    
+
+class TileStartEnd(Tile):
+    ''' Create tile with start and end'''
 
     def rotate(self):
         '''rotate tile counter clockwise'''
@@ -60,16 +89,7 @@ class Tile:
         else:
             self.end += 1
 
-    def __eq__(self, other):
-        if (
-            isinstance(other, Tile) \
-            and (self.name == other.name) \
-            and (self.l == other.l)
-            and (self.r == other.r)
-            and (self.c == other.c)
-            ):
-            return True
-        else:
-            return False
-    
+class TilePattern(Tile):
+    ''' Create tile that generates pattern'''
+
     

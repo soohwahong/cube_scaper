@@ -48,7 +48,7 @@ def onAppStart(app):
     app.tileSize = S["tileSize"] # num of cubes on one side of tile
     app.cubeDim = S["cubeDim"]   # pixel dim of one side of cube 
     app.tileDim = app.tileSize * app.cubeDim   # pixel dim of one side of tile
-    app.tileSet = tileSetA
+    app.tileSet = tileSetB
 
     # Tile set window (width, height, left, top)
     app.tileWin_w = app.width/2 - 5 * app.margin
@@ -85,6 +85,7 @@ def onAppStart(app):
     app.currentLevel = 0
 
     # Path Finding
+    app.pathMode = False # differentiate between pattern and path mode
     app.pathFinding = False
     app.settingHome = False
     app.settingDest = False
@@ -254,7 +255,7 @@ def inBoardRegion(app, mouseX, mouseY):
             return app.currentLevel, r, c
 
 #################### TODO : checks adjacency ####################
-def isTileLegalOnBoard(app, tile, l, r, c):
+def isTileLegalOnBoard(app, tile, l, r, c): #used in mousePress, DrawTileOnBoard
     ''' Given tile and tile index on board, 
         Returns boolean value of whether tile is legal 
         (there isn't any existing tile on board
@@ -262,59 +263,51 @@ def isTileLegalOnBoard(app, tile, l, r, c):
     # Checks existing
     if app.board_tiles[l,r,c] != None: return False
 
-    # Checks adjacency
-    # if checkPreviousTile(app, tile,l,r,c) == False : return False
-    # use tilesMeet and getPreviousNeighbors instead of checkPreviousTile
     current = tile # moving
-    previous = getPreviousNeighbors(app, tile)
-    print(f'Current : {current.l, current.r, current.c}, Previous is {previous}')
-    for pl,pr,pc in previous:
-        prev = app.board_tiles[pl,pr,pc]
-        if prev != None:
-            if not TilesMeet(prev, current): return False
+    if app.pathMode:
+        # Checks start and end adjacency
+        # if checkPreviousTile(app, tile,l,r,c) == False : return False
+        # use tilesMeet and getPreviousNeighbors instead of checkPreviousTile
+        previous = getPreviousNeighbors(app, current)
+        # print(f'Current : {current.l, current.r, current.c}, Previous is {previous}')
+        for pl,pr,pc in previous:
+            prev = app.board_tiles[pl,pr,pc]
+            if prev != None:
+                if not TilesMeet(prev, current): return False
 
-    return True
+        return True
 
-def checkPreviousTile(app, tile,l,r,c):
-    '''Checks 3 neighbors of start cube of current tile,
-       if previous tile exists, previous.end must meet current.start'''
-    # print(f'Checking previous tile for {tile.name}, {l,r,c}, {tile.start, tile.end}')
-    # start is at above side cube
-    if tile.start == 4:
-        if c<app.cols-1 and (app.board_tiles[l,r,c+1] != None) and (app.board_tiles[l,r,c+1].end != 1): return False # column direction
-        if r>=1 and (app.board_tiles[l,r-1,c] != None) and (app.board_tiles[l,r-1,c].end != 3): return False # row direction
-        if l>=1 and (app.board_tiles[l-1,r,c] != None) and (app.board_tiles[l-1,r,c].end != 8): return False # level direction
-    elif tile.start == 3:
-        if c<app.cols-1 and (app.board_tiles[l,r,c+1] != None) and (app.board_tiles[l,r,c+1].end != 2): return False # column direction
-        if r<app.rows-1 and (app.board_tiles[l,r+1,c] != None) and (app.board_tiles[l,r+1,c].end != 4): return False # row direction
-        if l>=1 and (app.board_tiles[l-1,r,c] != None) and (app.board_tiles[l-1,r,c].end != 7): return False # level direction
-    elif tile.start == 2:
-        if c>=1 and (app.board_tiles[l,r,c-1] != None) and (app.board_tiles[l,r,c-1].end != 3): return False # column direction
-        if r<app.rows-1 and (app.board_tiles[l,r+1,c] != None) and (app.board_tiles[l,r+1,c].end != 1): return False # row direction
-        if l>=1 and (app.board_tiles[l-1,r,c] != None) and (app.board_tiles[l-1,r,c].end != 6): return False # level direction
-    elif tile.start == 1:
-        if c>=1 and (app.board_tiles[l,r,c-1] != None) and (app.board_tiles[l,r,c-1].end != 4): return False # column direction
-        if r>=1 and (app.board_tiles[l,r-1,c] != None) and (app.board_tiles[l,r-1,c].end != 2): return False # row direction
-        if l>=1 and (app.board_tiles[l-1,r,c] != None) and (app.board_tiles[l-1,r,c].end != 5): return False # level direction
-    # start is at top cube
-    elif tile.start == 8:
-        if c<app.cols-1 and (app.board_tiles[l,r,c+1] != None) and (app.board_tiles[l,r,c+1].end != 5): return False # column direction
-        if r>=1 and (app.board_tiles[l,r-1,c] != None) and (app.board_tiles[l,r-1,c].end != 7): return False # row direction
-        if l<app.levels and (app.board_tiles[l+1,r,c] != None) and (app.board_tiles[l+1,r,c].end != 4): return False # level direction
-    elif tile.start == 7:
-        if c<app.cols-1 and (app.board_tiles[l,r,c+1] != None) and (app.board_tiles[l,r,c+1].end != 6): return False # column direction
-        if r<app.rows-1 and (app.board_tiles[l,r+1,c] != None) and (app.board_tiles[l,r+1,c].end != 8): return False # row direction
-        if l<app.levels and (app.board_tiles[l+1,r,c] != None) and (app.board_tiles[l+1,r,c].end != 3): return False # level direction
-    elif tile.start == 6:
-        if c>=1 and (app.board_tiles[l,r,c-1] != None) and (app.board_tiles[l,r,c-1].end != 7): return False # column direction
-        if r<app.rows-1 and (app.board_tiles[l,r+1,c] != None) and (app.board_tiles[l,r+1,c].end != 5): return False # row direction
-        if l<app.levels and (app.board_tiles[l+1,r,c] != None) and (app.board_tiles[l+1,r,c].end != 2): return False # level direction
-    elif tile.start == 5:
-        if c>=1 and (app.board_tiles[l,r,c-1] != None) and (app.board_tiles[l,r,c-1].end != 8): return False # column direction
-        if r>=1 and (app.board_tiles[l,r-1,c] != None) and (app.board_tiles[l,r-1,c].end != 6): return False # row direction
-        if l<app.levels and (app.board_tiles[l+1,r,c] != None) and (app.board_tiles[l+1,r,c].end != 1): return False # level direction
-    
-    return True
+    if not app.pathMode: # pattern mode
+        current = tile
+        # check top, bottom, left, right, above, below
+        above   = app.board_tiles[current.l+1, current.r, current.c] if l<app.levels-1 else None
+        under   = app.board_tiles[current.l-1, current.r, current.c] if l>0 else None
+        top     = app.board_tiles[current.l, current.r, current.c-1] if c>0 else None
+        bottom  = app.board_tiles[current.l, current.r, current.c+1] if c<app.cols-1 else None
+        left    = app.board_tiles[current.l, current.r-1, current.c] if r>0 else None
+        right   = app.board_tiles[current.l, current.r+1, current.c] if r<app.rows-1 else None
+        if above!=None and (above.name not in current.adjAbove):
+            print("not fit tile above")
+            return False
+        if under!=None and (under.name not in current.adjUnder):
+            print("not fit tile under")
+            return False
+        if top!=None and (top.name not in current.adjTop):
+            print("not fit tile top")
+            return False
+        if bottom!=None and (bottom.name not in current.adjBottom):
+            print("not fit tile bottom")
+            return False
+        if left!=None and (left.name not in current.adjLeft):
+            print("not fit tile left")
+            return False
+        if right!=None and (right.name not in current.adjRight):
+            print("not fit tile right")
+            return False
+        
+        return True
+
+
 
     
 def inPolygon(xq, yq, xv, yv):
@@ -546,17 +539,18 @@ def drawTileOnCanvas(app, tile, px, py):
         if x==rows-1 or tile.map[z, x+1, y] != 1:
             drawPolygon(*tb, *tr, *br, *bb, border='white', borderWidth=0.3, fill='black') # draw right front
 
-        # indicate start and end constraint
-        # print(f'{tile.start, tile.end}')
-        startCube = app.tileSet.constraintDict[tile.start]
-        endCube = app.tileSet.constraintDict[tile.end]
-        # print(f'{tile.name, startCube, endCube}')
-        if tile.start != 0:
-            if (z,x,y) == startCube:
-                drawCircle(int(cx),int(cy), 3, fill='green') # start has green dot on above left corner
-        if tile.end != 0:
-            if (z,x,y) == endCube:
-                drawCircle(int(cx),int(cy), 3, fill='red') # end has red dot on top right corner
+        if app.pathMode:
+            # indicate start and end constraint
+            # print(f'{tile.start, tile.end}')
+            startCube = app.tileSet.constraintDict[tile.start]
+            endCube = app.tileSet.constraintDict[tile.end]
+            # print(f'{tile.name, startCube, endCube}')
+            if tile.start != 0:
+                if (z,x,y) == startCube:
+                    drawCircle(int(cx),int(cy), 3, fill='green') # start has green dot on above left corner
+            if tile.end != 0:
+                if (z,x,y) == endCube:
+                    drawCircle(int(cx),int(cy), 3, fill='red') # end has red dot on top right corner
 
 def drawTileSet(app):
     ''' Draws tile set on left side of page'''
@@ -717,13 +711,8 @@ def drawBoard(app):
         if x==rows-1 or app.board[z, x+1, y] != 1:
             drawPolygon(*tb, *tr, *br, *bb, border='white', borderWidth=0.3, fill='black') # draw right front
 
-    # # go over tiles on board, draw start and end # this has error!
-    # tileInds = np.argwhere(app.board_tiles!=None)
-    # for l,r,c in tileInds:
-    #     tile = app.board_tiles[l,r,c]
-    #     drawConstraints(app, tile)
 
-def drawConstraints(app, tile):
+def drawConstraints(app, tile): # NOT USED
     d = app.cubeDim
     tx, ty = tileIndexToPixel(app, tile.l, tile.r, tile.c)
     if tile.start != 0:
@@ -915,9 +904,9 @@ def locationValid(app,l,r,c):
 def TilesMeet(current, compare):
     '''Given two tiles current and compare, 
        check if current.end meets with compare.start'''
-    print(f'Checking Adjacency ... \
-        \n--Current:{current.name}, {current.l,current.r,current.c} & \
-        \n--Compare:{compare.name}, {compare.l,compare.r,compare.c}')
+    # print(f'Checking Adjacency ... \
+    #     \n--Current:{current.name}, {current.l,current.r,current.c} & \
+    #     \n--Compare:{compare.name}, {compare.l,compare.r,compare.c}')
     
     # two tiles have to be neighboring
     if abs(current.l-compare.l) + abs(current.r-compare.r) + abs(current.c-compare.c) != 1: 

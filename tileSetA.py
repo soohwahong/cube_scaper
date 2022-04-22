@@ -2,7 +2,7 @@ import numpy as np
 from settings import getSettings
 from tile import *
 
-I_h = Tile("4_3", 4, 3)
+I_h = TileStartEnd("4_3", 4, 3)
 I_h.map = np.array([
         [[0, 0, 1],
          [0, 0, 1],
@@ -15,7 +15,7 @@ I_h.map = np.array([
          [0, 0, 0]]
         ])
 
-I_v = Tile("4_8", 4, 8)
+I_v = TileStartEnd("4_8", 4, 8)
 I_v.map = np.array([
         [[0, 0, 1],
          [0, 0, 0],
@@ -28,7 +28,7 @@ I_v.map = np.array([
          [0, 0, 0]]
         ])
 
-L_h = Tile("4_2", 4, 2)
+L_h = TileStartEnd("4_2", 4, 2)
 L_h.map = np.array([
         [[0, 0, 1],
          [0, 0, 1],
@@ -41,7 +41,7 @@ L_h.map = np.array([
          [0, 0, 0]]
         ])
 
-L_v = Tile("4_7", 4, 7)
+L_v = TileStartEnd("4_7", 4, 7)
 L_v.map = np.array([
         [[0, 0, 1],
          [0, 0, 1],
@@ -54,7 +54,7 @@ L_v.map = np.array([
          [0, 0, 1]]
         ])
 
-Li_v = Tile("4_7", 4, 7)
+Li_v = TileStartEnd("4_7", 4, 7)
 Li_v.map = np.array([
         [[0, 0, 1],
          [0, 0, 0],
@@ -67,7 +67,7 @@ Li_v.map = np.array([
          [0, 0, 1]]
         ])
 
-Lv_Liv = Tile("4_6", 4, 6)
+Lv_Liv = TileStartEnd("4_6", 4, 6)
 Lv_Liv.map = np.array([
         [[0, 0, 1],
          [0, 0, 1],
@@ -80,7 +80,7 @@ Lv_Liv.map = np.array([
          [1, 1, 1]]
         ])
 
-Lh_Lv = Tile("4_6", 4, 6)
+Lh_Lv = TileStartEnd("4_6", 4, 6)
 Lh_Lv.map = np.array([
         [[0, 0, 1],
          [0, 0, 1],
@@ -93,7 +93,7 @@ Lh_Lv.map = np.array([
          [1, 0, 0]]
         ])
 
-Lh_Lv_Liv = Tile("5_4", 5, 4) #flipped
+Lh_Lv_Liv = TileStartEnd("5_4", 5, 4) #flipped
 Lh_Lv_Liv.map = np.array([
         [[0, 0, 1],
          [0, 0, 1],
@@ -106,7 +106,7 @@ Lh_Lv_Liv.map = np.array([
          [1, 0, 0]]
         ])
 
-empty = Tile("empty", 0, 0)
+empty = TileStartEnd("empty", 0, 0)
 empty.map = np.array([
         [[0, 0, 0],
          [0, 0, 0],
