@@ -68,4 +68,9 @@ full_five[a:a+3, b:b+3, c:c+3] = replace
 
 
 a = None
-print( a!=None and a.x == 2)
+# print( a!=None and a.x == 2)
+
+a = np.empty((2,2,2), dtype=object)
+print(a)
+a[:,:,:] = [1,2]
+print(a)

@@ -92,8 +92,23 @@ def onAppStart(app):
     app.home = None
     app.dest = None
 
+    # Pattern Finding with WFC
+    app.patternMode = True
+    app.outputBoard = dict() # list of what tiles can come based on adjacency rules 
+    initOutputBoard(app)
+    print(app.outputBoard)
 
-## TODO : Set home and goal tile on board ##
+
+def initOutputBoard(app):
+    '''dictionary where
+        key = (l,r,c) tuple of coordinate on board
+        value = list of all tile types, initialized as empty list'''
+    output = dict()
+    for l in range(app.levels):
+        for r in range(app.rows):
+            for c in range(app.cols):
+                output[(l,c,r)] = app.tileSet.tiles
+    app.outputBoard = output
 
 ## Functions used on start
 
@@ -277,7 +292,7 @@ def isTileLegalOnBoard(app, tile, l, r, c): #used in mousePress, DrawTileOnBoard
 
         return True
 
-    if not app.pathMode: # pattern mode
+    if app.patternMode: # pattern mode
         current = tile
         # check top, bottom, left, right, above, below
         above   = app.board_tiles[current.l+1, current.r, current.c] if l<app.levels-1 else None
@@ -334,9 +349,11 @@ def redrawAll(app):
     drawTileSet(app)
     drawGrid(app)        
     drawBoard(app) 
-    drawLevelGrid(app)
+    drawLevelGuide(app)
     drawMovingTile(app)
     drawStatusBar(app)
+
+    drawPossibleTiles(app)
         
 
 def drawStatusBar(app):
@@ -681,11 +698,13 @@ def drawGrid(app):
     for level in range(0, app.levels):
         drawIsoGridTiles(app, level, label=False) # level 1~tile grid: 
 
-def drawLevelGrid(app):
+def drawLevelGuide(app):
+    ''' draws level guide'''
     level = app.currentLevel
     # drawIsoGridTiles(app, level, label=True, o=30, f='lightSkyBlue')
     drawIsoGridTiles(app, level, label=True, o=100, f=None)
     drawIsoGridCubes(app, level*app.tileSize)
+    drawPossibleTiles(app)
 
     
 def drawBoard(app):
@@ -696,8 +715,6 @@ def drawBoard(app):
     d = app.cubeDim
 
     # go over cubes on board, check if face occluded, draw only when displayed
-    
-    # go over cubes on board before current layer
     cubeInds = np.argwhere(app.board == 1)
     for z,x,y in cubeInds:
         cx, cy = cubeIndexToPixel(app, z, x, y)
@@ -710,6 +727,15 @@ def drawBoard(app):
             drawPolygon(*tl, *bl, *bb, *tb, border='black', borderWidth=0.3, fill='gray') # draw left front
         if x==rows-1 or app.board[z, x+1, y] != 1:
             drawPolygon(*tb, *tr, *br, *bb, border='white', borderWidth=0.3, fill='black') # draw right front
+
+def drawPossibleTiles(app):    
+    # in pattern mode, label possible tile for each tile on level guide
+    if app.patternMode:
+        for r in range(app.rows):
+            for c in range(app.cols):
+                tx,ty = tileIndexToPixel(app,app.currentLevel,r,c)
+                drawLabel(f'{app.outputBoard[(app.currentLevel,r,c)]}', tx, ty+15, size=7, fill='gray')
+
 
 
 def drawConstraints(app, tile): # NOT USED
@@ -798,7 +824,6 @@ def pathFindHelper(app, current, depth):
                             removeTileFromBoard(app, next, next.l, next.r, next.c)
         
             return None
-
 
 def getPreviousNeighbors(app, tile):
     '''Given tile, 
@@ -899,8 +924,7 @@ def locationValid(app,l,r,c):
     if r<0 or app.rows<=r: return False
     if c<0 or app.cols<=c: return False
     return True
-    
-        
+          
 def TilesMeet(current, compare):
     '''Given two tiles current and compare, 
        check if current.end meets with compare.start'''
@@ -980,6 +1004,7 @@ def TilesMeet(current, compare):
     return True
                 
 
+## Pattern Generation ##
 def main():
     runApp(1200, 600)
 
