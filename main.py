@@ -6,6 +6,7 @@ from tile import *
 import copy
 from matplotlib import path
 from tileSetA import *
+from tileSetB import *
 from wfc import *
 
 ''' Resources 
@@ -26,6 +27,16 @@ from wfc import *
 
     '''
 
+
+
+''' 
+TODO
+1. move functions to separate file
+2. change few tile to that are hi-lo
+2. Post MVP
+    - transparent -> ball moving interface
+    - make start, end more visible
+'''
 
 def onAppStart(app):
     # app.setMaxShapeCount(100000)
@@ -222,16 +233,17 @@ def isTileSelect(app, mouseX, mouseY):
             return copy.deepcopy(tile)
     return None
 
+## TODO: add app.currentLevel constrant so that drawing can only draw on current level
 def inBoardRegion(app, mouseX, mouseY):
     ''' Checks if mouse is on isometric board window,
         and if it is, returns tile index (level, row, col),
         otherwise return None'''
     # for each index in board
-    # for l, r, c in (np.argwhere((app.board_tiles == 0) | (app.board_tiles == 1))):
-    for l, r, c in np.argwhere(app.board_tiles!=0): # get all indices of board tile
+    # for l, r, c in np.argwhere(app.board_tiles!=0): # get all indices of board tile
+    for l, r, c in np.argwhere(app.board_tiles[app.currentLevel:app.currentLevel+1]!=0): # get all indices of board tile
         # get four corners pixel coordinates in order t, r, b, l
         d = app.tileDim
-        tx ,ty = tileIndexToPixel(app,l,r,c)
+        tx ,ty = tileIndexToPixel(app,app.currentLevel,r,c)
         rx, ry = tx+d, ty-0.5*d
         bx, by = tx, ty+d
         lx, ly = tx-d, ty-0.5*d
@@ -239,7 +251,7 @@ def inBoardRegion(app, mouseX, mouseY):
         xv = np.array([tx, rx, bx, lx])
         yv = np.array([ty, ry, by, ly])
         if inPolygon(np.array([mouseX]), np.array([mouseY]), xv, yv):
-            return l, r, c
+            return app.currentLevel, r, c
 
 #################### TODO : checks adjacency ####################
 def isTileLegalOnBoard(app, tile, l, r, c):
@@ -922,7 +934,7 @@ def TilesMeet(current, compare):
         if current.end < 5: 
             print("under")
             return False # current end on above side!
-        if current.end - compare.start != 3: 
+        if current.end - compare.start != 4: 
             print("under diff")
             return False
     
