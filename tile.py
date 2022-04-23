@@ -49,14 +49,17 @@ class Tile:
     def __eq__(self, other):
         if (
             isinstance(other, Tile) \
-            and (self.name == other.name) \
-            and (self.l == other.l)
-            and (self.r == other.r)
-            and (self.c == other.c)
+            and (self.name == other.name) 
+            # and (self.l == other.l)
+            # and (self.r == other.r)
+            # and (self.c == other.c)
             ):
             return True
         else:
             return False
+
+    def __hash__(self):
+        return int(hash(self.name))
 
     def setMap(self, arr):
         a_dim = arr.shape

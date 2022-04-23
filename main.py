@@ -94,9 +94,9 @@ def onAppStart(app):
 
     # Pattern Finding with WFC
     app.patternMode = True
-    app.outputBoard = dict() # list of what tiles can come based on adjacency rules 
+    app.outputBoard = dict() # dictionary of list of what tiles can come based on adjacency rules 
     initOutputBoard(app)
-    print(app.outputBoard)
+    # print(app.outputBoard)
 
 
 def initOutputBoard(app):
@@ -107,7 +107,7 @@ def initOutputBoard(app):
     for l in range(app.levels):
         for r in range(app.rows):
             for c in range(app.cols):
-                output[(l,c,r)] = app.tileSet.tiles
+                output[(l,c,r)] = copy.deepcopy(app.tileSet.tiles)
     app.outputBoard = output
 
 ## Functions used on start
@@ -164,7 +164,8 @@ def clearBoard(app):
     app.dest = None
     app.board_tiles = np.empty((app.levels, app.rows, app.cols), dtype=object)
     app.board = np.zeros((app.levels*app.tileSize, app.rows*app.tileSize, app.cols*app.tileSize)) 
-    
+    if app.patternMode:
+        initOutputBoard(app)    
 ## Implement for post MVP ##
 def moveThruPath(app):
     return 42
@@ -293,31 +294,35 @@ def isTileLegalOnBoard(app, tile, l, r, c): #used in mousePress, DrawTileOnBoard
         return True
 
     if app.patternMode: # pattern mode
-        current = tile
-        # check top, bottom, left, right, above, below
-        above   = app.board_tiles[current.l+1, current.r, current.c] if l<app.levels-1 else None
-        under   = app.board_tiles[current.l-1, current.r, current.c] if l>0 else None
-        top     = app.board_tiles[current.l, current.r, current.c-1] if c>0 else None
-        bottom  = app.board_tiles[current.l, current.r, current.c+1] if c<app.cols-1 else None
-        left    = app.board_tiles[current.l, current.r-1, current.c] if r>0 else None
-        right   = app.board_tiles[current.l, current.r+1, current.c] if r<app.rows-1 else None
-        if above!=None and (above.name not in current.adjAbove):
-            print("not fit tile above")
-            return False
-        if under!=None and (under.name not in current.adjUnder):
-            print("not fit tile under")
-            return False
-        if top!=None and (top.name not in current.adjTop):
-            print("not fit tile top")
-            return False
-        if bottom!=None and (bottom.name not in current.adjBottom):
-            print("not fit tile bottom")
-            return False
-        if left!=None and (left.name not in current.adjLeft):
-            print("not fit tile left")
-            return False
-        if right!=None and (right.name not in current.adjRight):
-            print("not fit tile right")
+        # current = tile
+        # # check top, bottom, left, right, above, below
+        # above   = app.board_tiles[current.l+1, current.r, current.c] if l<app.levels-1 else None
+        # under   = app.board_tiles[current.l-1, current.r, current.c] if l>0 else None
+        # top     = app.board_tiles[current.l, current.r, current.c-1] if c>0 else None
+        # bottom  = app.board_tiles[current.l, current.r, current.c+1] if c<app.cols-1 else None
+        # left    = app.board_tiles[current.l, current.r-1, current.c] if r>0 else None
+        # right   = app.board_tiles[current.l, current.r+1, current.c] if r<app.rows-1 else None
+        # if above!=None and (above.name not in current.adjAbove):
+        #     print("not fit tile above")
+        #     return False
+        # if under!=None and (under not in current.adjUnder):
+        #     print("not fit tile under")
+        #     print(f'under is {under}')
+        #     print(f'current.adjUnder is {current.adjUnder}')
+        #     return False
+        # if top!=None and (top not in current.adjTop):
+        #     print("not fit tile top")
+        #     return False
+        # if bottom!=None and (bottom not in current.adjBottom):
+        #     print("not fit tile bottom")
+        #     return False
+        # if left!=None and (left not in current.adjLeft):
+        #     print("not fit tile left")
+        #     return False
+        # if right!=None and (right not in current.adjRight):
+        #     print("not fit tile right")
+        #     return False
+        if tile not in app.outputBoard[(l,r,c)]:
             return False
         
         return True
@@ -653,6 +658,99 @@ def placeTileOnBoard(app, tile, l, r, c):
     tile.onBoard = True
     tile.l, tile.r, tile.c = l, r, c
     tile.px, tile.py = -1, -1 # clearing values if any
+
+    # in Pattern Mode reduce outcome board 
+    if app.patternMode:
+        # reduce outcomeboard of neghbors and propogate through entire grid
+        reduceNeighbors(app, tile, l, r, c)
+        app.outputBoard[(l,r,c)] = set([tile])
+
+#### TODO ####
+def reduceNeighbors(app, tile, l, r, c):
+    reduceNeighborsHelper(app, tile, l,r,c)
+
+def reduceNeighborsHelper(app, tile, l, r, c):
+    # toCheckQueue = [] # nl,nr,nc coordinates of neighbors to check
+    # checkedNeighbors = set() # coordinates that are already checked, no reduction 
+
+    # for all 6 neighboring directions
+    under, above, left, right, top, bottom = getAllNeighbors(app,l,r,c) # coordinate of neighbors
+    # take off queue, reduce neighbors, if changed, add neighbors to queue
+
+    # retrieve list of possible tiles
+    u_poss = app.outputBoard[under]  if len(under)!=0 else []
+    a_poss = app.outputBoard[above]  if len(above)!=0 else []
+    l_poss = app.outputBoard[left]   if len(left)!=0 else []
+    r_poss = app.outputBoard[right]  if len(right)!=0 else []
+    t_poss = app.outputBoard[top]    if len(top)!=0 else []
+    b_poss = app.outputBoard[bottom] if len(bottom)!=0 else []
+
+    # print(u_poss, a_poss, l_poss, r_poss, t_poss, b_poss)
+
+    # base case : all neighbors are designated, or all empty lists
+    if  (len(u_poss)==0 or len(u_poss)==1) and \
+        (len(a_poss)==0 or len(a_poss)==1) and \
+        (len(l_poss)==0 or len(l_poss)==1) and \
+        (len(r_poss)==0 or len(r_poss)==1) and \
+        (len(t_poss)==0 or len(t_poss)==1) and \
+        (len(b_poss)==0 or len(b_poss)==1):
+        return app.outputBoard
+    
+    # reduce neighbors - lists
+    u_comp = tile.adjUnder
+    a_comp = tile.adjAbove
+    l_comp = tile.adjLeft
+    r_comp = tile.adjRight
+    t_comp = tile.adjTop
+    b_comp = tile.adjBottom
+    # print(u_comp, a_comp, l_comp, r_comp, t_comp, b_comp)
+    
+    # compare existing list and possible
+    # leave only those that are possible in output board
+    new_u_poss = set()
+    new_a_poss = set()
+    new_l_poss = set()
+    new_r_poss = set()
+    new_t_poss = set()
+    new_b_poss = set()
+    
+    for u_t in u_poss:
+        if u_t in u_comp: new_u_poss.add(u_t)
+    for a_t in a_poss:
+        if a_t in a_comp: new_a_poss.add(a_t)
+    for l_t in l_poss:
+        if l_t in l_comp: new_l_poss.add(l_t)
+    for r_t in r_poss:
+        if r_t in r_comp: new_r_poss.add(r_t)
+    for t_t in t_poss:
+        if t_t in t_comp: new_t_poss.add(t_t)
+    for b_t in t_poss:
+        if b_t in b_comp: new_b_poss.add(b_t)
+
+    app.outputBoard[under]  = list(new_u_poss)
+    app.outputBoard[above]  = list(new_a_poss)
+    app.outputBoard[left]   = list(new_l_poss)
+    app.outputBoard[right]  = list(new_r_poss)
+    app.outputBoard[top]    = list(new_t_poss)
+    app.outputBoard[bottom] = list(new_b_poss)
+        # if list has changed,
+        # check 6 neighbors and leave only those that are possible in output board
+
+
+def getAllNeighbors(app,l,r,c):
+    ''' returns list of coordinate (l,r,c) of 
+        under, above, left, right, top, bottom neighbors
+        blank tuple if wall'''
+    under   = (l-1,r,c) if l>0 else tuple()
+    above   = (l+1, r, c) if l<app.levels-1 else tuple()
+    left    = (l,r-1,c) if r>0 else tuple()
+    right   = (l,r+1,c) if r<app.rows-1 else tuple()
+    top     = (l,r,c-1) if c>0 else tuple()
+    bottom  = (l,r,c+1) if c<app.cols-1 else tuple()
+    
+    return ([under, above, left, right, top, bottom])
+
+
 
 def removeTileFromBoard(app, tile, l, r, c):
     # revert app.board
@@ -1005,6 +1103,10 @@ def TilesMeet(current, compare):
                 
 
 ## Pattern Generation ##
+def patternGenerate(app):
+    # start at 
+    pass
+
 def main():
     runApp(1200, 600)
 

@@ -37,14 +37,3 @@ TODO
 # Create tile set
 # display propagation of available tiles
 # implement function
-
-class WFCSolver:
-    ''' Solver for Wave Function Collapse '''
-    def __init__(self, app):
-        self.outputBoard = np.empty((app.levels, app.rows, app.cols), dtype=object)
-        initOutputBoard(self)
-
-
-    def initOutputBoard(self):
-        '''every tile on outbut board initialized with all tile types'''
-        self.outputBoard[:,:,:] = []
