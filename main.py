@@ -1,3 +1,4 @@
+from concurrent.futures.process import _threads_wakeups
 from operator import truediv
 from cmu_cs3_graphics import *
 import numpy as np
@@ -42,13 +43,40 @@ TODO
 
 
 ''' TODO
-post mvp 
-path finding mode
-UI to switch tileset
-    - light up tiles 
-UI to switch modes 
-    - label saying " We are in path finding mode" 
-UI instructions 
+[Start Page]
+-opaque cover
+"What are we making?"
+"Press 1: Path or 0: Pattern"
+
+[Pattern Mode]
+- select tiles : light up tiles 
+
+[Path Mode]
+- transparent tiles + lightup path?
+
+
+Status bar
+"PATH MODE : Press S and select and place start tile + Press E and select and place END TILE | Press P to generate path"
+"PATTERN MODE : Press z to select tiles | Press w to generate 3d pattern"
+"Path not found. Are you sure you selected a start and an end?"
+"We found a path!"
+"Pattern not found. Try selecting a different subset"
+"We found a pattern!"
+
+
+Board Bottom left
+"Rotate Tile : T"
+
+Board Bottom right
+"Clear Board : C"
+"Toggle Level Guard : L "
+"Move Level Guard : ↑ ↓
+"Rotate Board : → "
+
+Screen bottom left
+"Return to Home : H"
+
+***Write scenario and demo 
 
 '''
 def onAppStart(app):
@@ -106,13 +134,18 @@ def onAppStart(app):
     app.dest = None
 
     # Pattern Finding with WFC
-    app.patternMode = True
+    app.patternMode = False
     app.outputBoard = dict() # dictionary of list of what tiles can come based on adjacency rules 
     initOutputBoard(app)
     # print(app.outputBoard)
 
+    # selecting subset of tiles
     app.selectTileSet = False
     app.modifiedTileSet = TileSet("mod_tileSetB")
+
+    # UI Features
+    app.status = "Hello"
+    app.startScreen = True
 
 
 def initOutputBoard(app):
@@ -131,60 +164,76 @@ def initOutputBoard(app):
 ## Controllers
 
 def onKeyPress(app, key):
-    # Rotate Holding tile
-    if app.holdingTile:
-        if key == 't':
-            app.currentTile.rotate()
-            # print(f'{app.currentTile.name} is rotated {app.currentTile.rotated} \
-            #     and start, end is {app.currentTile.start, app.currentTile.end}')
+    if app.startScreen:
+        if key == '1':
+            app.pathMode = True
+            app.patternMode = False
+            app.tileSet = tileSetA
+            app.startScreen = False
 
-    # Control Level guide
-    if (key == 'up') and (app.currentLevel<app.levels-1):
-        app.currentLevel += 1
-    if (key == 'down') and (app.currentLevel>0):
-        app.currentLevel -= 1
+        elif key == '0':
+            app.patternMode = True
+            app.pathMode = False
+            app.tileSet = tileSetB
+            app.startScreen = False
+    else:
+        # Rotate Holding tile
+        if app.holdingTile:
+            if key == 't':
+                app.currentTile.rotate()
+                # print(f'{app.currentTile.name} is rotated {app.currentTile.rotated} \
+                #     and start, end is {app.currentTile.start, app.currentTile.end}')
 
-    # Rotate board
-    if (key == 'right'):
-        rotateBoard(app)
+        # Control Level guide
+        if (key == 'up') and (app.currentLevel<app.levels-1):
+            app.currentLevel += 1
+        if (key == 'down') and (app.currentLevel>0):
+            app.currentLevel -= 1
 
-    # Setting home
-    if (key == 'h'):
-        app.settingHome = True
-        app.settingDest = False
-    
-    if key == 'd':
-        app.settingDest = True
-        app.settingHome = False
+        # Rotate board
+        if (key == 'right'):
+            rotateBoard(app)
 
-    if key == 'p':
-        res = pathFind(app)
-        if res == None:
-            print("Couldn't find path")
-        else:
-            print("Found path!")
-        # app.pathFinding = True
-        if key == 'm':
-            moveThruPath(app)
+        # Setting start
+        if (key.lower() == 's'):
+            app.settingHome = True
+            app.settingDest = False
+        
+        if key.lower() == 'e':
+            app.settingDest = True
+            app.settingHome = False
 
-    if key == 'r':
-        clearBoard(app)
-        if app.patternMode:
-            app.tileSet = tileSetB # reset tileSet
-            app.modifiedTileSet.tiles = [] # reset modified tileSet
+        if key.lower() == 'p':
+            res = pathFind(app)
+            if res == None:
+                print("Couldn't find path")
+            else:
+                print("Found path!")
+            # app.pathFinding = True
+            if key.lower() == 'm':
+                moveThruPath(app)
 
-    if key == 'w':
-        if app.patternMode:
-            patternGenerate(app)
+        if key.lower() == 'r':
+            clearBoard(app)
+            if app.patternMode:
+                app.tileSet = tileSetB # reset tileSet
+                app.modifiedTileSet.tiles = [] # reset modified tileSet
 
-    if key == 's':
-        if app.patternMode:
-            app.selectTileSet = not app.selectTileSet # switch modes on and off
-            if app.selectTileSet:
-                print("selecting tiles")
-            if app.selectTileSet == False:
-                app.tileSet = copy.deepcopy(app.modifiedTileSet)
+        if key.lower() == 'w':
+            if app.patternMode:
+                patternGenerate(app)
 
+        if key.lower() == 'z':
+            if app.patternMode:
+                app.selectTileSet = not app.selectTileSet # switch modes on and off
+                if app.selectTileSet:
+                    print("selecting tiles")
+                if app.selectTileSet == False:
+                    app.tileSet = copy.deepcopy(app.modifiedTileSet)
+
+        if key.lower() == 'h':
+            clearBoard(app)
+            app.startScreen = True
 
 def clearBoard(app):
     app.holdingTile = False
@@ -198,11 +247,7 @@ def clearBoard(app):
     app.board = np.zeros((app.levels*app.tileSize, app.rows*app.tileSize, app.cols*app.tileSize)) 
     if app.patternMode:
         initOutputBoard(app)    
-## Implement for post MVP ##
-def moveThruPath(app):
-    return 42
-    
-        
+
 
 def rotateBoard(app):
     ''' On right press, rotate the board
@@ -220,9 +265,6 @@ def onMousePress(app, mouseX, mouseY):
             if select not in app.modifiedTileSet.tiles:
                 app.modifiedTileSet.tiles.append(select)
         
-
-
-
     elif not app.holdingTile: # not holding tile
         # Case 1: Selecting tile anew to add to board
         select = isTileSelect(app, mouseX, mouseY)
@@ -235,6 +277,13 @@ def onMousePress(app, mouseX, mouseY):
         # Case 2: swap holding tile
         if select !=None:
             app.currentTile = select
+        
+        # Case 2: drop tile if click not in board or tile select
+        elif inBoardRegion(app, mouseX, mouseY) == None: 
+            app.holdingTile = False
+            app.currentTile.onBoard = False
+            app.currentTile = None
+
         # Case 3: Place current tile on board if legal 
         else:
             if isTileLegalOnBoard(app, app.currentTile, app.currentTile.l, app.currentTile.r, app.currentTile.c):
@@ -254,14 +303,8 @@ def onMousePress(app, mouseX, mouseY):
                 app.currentTile = None
                 app.holdingTile = False
     
-        
-        
-
-
-
 
 def onMouseMove(app, mouseX, mouseY):
-
     if app.holdingTile:
         # if in board region, snap to board 
         if (inBoardRegion(app, mouseX, mouseY)!=None):
@@ -294,7 +337,6 @@ def isTileSelect(app, mouseX, mouseY):
             return copy.deepcopy(tile)
     return None
 
-## TODO: add app.currentLevel constrant so that drawing can only draw on current level
 def inBoardRegion(app, mouseX, mouseY):
     ''' Checks if mouse is on isometric board window,
         and if it is, returns tile index (level, row, col),
@@ -314,7 +356,6 @@ def inBoardRegion(app, mouseX, mouseY):
         if inPolygon(np.array([mouseX]), np.array([mouseY]), xv, yv):
             return app.currentLevel, r, c
 
-#################### TODO : checks adjacency ####################
 def isTileLegalOnBoard(app, tile, l, r, c): #used in mousePress, DrawTileOnBoard
     ''' Given tile and tile index on board, 
         Returns boolean value of whether tile is legal 
@@ -338,42 +379,10 @@ def isTileLegalOnBoard(app, tile, l, r, c): #used in mousePress, DrawTileOnBoard
         return True
 
     if app.patternMode: # pattern mode
-        # current = tile
-        # # check top, bottom, left, right, above, below
-        # above   = app.board_tiles[current.l+1, current.r, current.c] if l<app.levels-1 else None
-        # under   = app.board_tiles[current.l-1, current.r, current.c] if l>0 else None
-        # top     = app.board_tiles[current.l, current.r, current.c-1] if c>0 else None
-        # bottom  = app.board_tiles[current.l, current.r, current.c+1] if c<app.cols-1 else None
-        # left    = app.board_tiles[current.l, current.r-1, current.c] if r>0 else None
-        # right   = app.board_tiles[current.l, current.r+1, current.c] if r<app.rows-1 else None
-        # if above!=None and (above.name not in current.adjAbove):
-        #     print("not fit tile above")
-        #     return False
-        # if under!=None and (under not in current.adjUnder):
-        #     print("not fit tile under")
-        #     print(f'under is {under}')
-        #     print(f'current.adjUnder is {current.adjUnder}')
-        #     return False
-        # if top!=None and (top not in current.adjTop):
-        #     print("not fit tile top")
-        #     return False
-        # if bottom!=None and (bottom not in current.adjBottom):
-        #     print("not fit tile bottom")
-        #     return False
-        # if left!=None and (left not in current.adjLeft):
-        #     print("not fit tile left")
-        #     return False
-        # if right!=None and (right not in current.adjRight):
-        #     print("not fit tile right")
-        #     return False
         if tile not in app.outputBoard[(l,r,c)]:
             return False
-        
         return True
 
-
-
-    
 def inPolygon(xq, yq, xv, yv):
         ''' xv, yv are 1d numpy arrays of coordinates that form polygon
             xq, yq are 1d numpy arrays of points that are being evaluated
@@ -391,44 +400,7 @@ def inPolygon(xq, yq, xv, yv):
         p = path.Path([(xv[i], yv[i]) for i in range(xv.shape[0])])
         return p.contains_points(q).reshape(shape)
 
-    
-## Draw
-def redrawAll(app):
-    
-    drawTileSet(app)
-    drawGrid(app)        
-    drawBoard(app) 
-    drawLevelGuide(app)
-    drawMovingTile(app)
-    drawStatusBar(app)
-
-    drawPossibleTiles(app)
-        
-
-def drawStatusBar(app):
-    ''' Writes messages and status of game on top of page'''
-    label = "Hello"
-    if app.settingHome:
-        label = "Pick a Home tile, rotate and drop it on the Board"
-    if app.settingDest:
-        label = "Pick a Destination tile, rotate and drop it on the Board"
-    if app.selectTileSet:
-        label = "Click on tile to add ...."
-    drawLabel(label, 50, 25, size=16, font='montserrat', align='left')
-
-## Isometric Functions ##
-def cartToIso(x, y):
-    isoX = x - y
-    isoY = (x+y)*0.5
-    return int(isoX), int(isoY)
-    # return isoX, isoY
-    
-def isoToCart(ix, iy):
-    cx = (ix + 2*iy)/2
-    cy = (-ix + 2*iy)/2
-    # return int(cx), int(cy)
-    return cx, cy
-
+## Index to Pixel Functions ##
 def tileIndexToPixel(app, l, r, c):
     '''Given 3d board coordinate of tile unit l, c, r,
     Return pixel coordinate of origin point(center) tx, ty
@@ -453,84 +425,56 @@ def cubeIndexToPixel(app, z, x, y):
     # return int(cx), int(cy)
     return cx, cy
 
-      
-def drawIsoCube(px, py, w, d, h): ###### NO USE
-    ''' Given pixel location ix,iy of above top point of cube,
-        and dimension of cube, draw cube on canvas'''
-    # get 6 points of cube by
-    # level + 1 changes py -> py+h 
-    # from caresian rect > get corners of iso rectangles
-    tt, tr, tb, tl = getCornerPointsIsoRect(px, py-h, w, d)
-    bt, br, bb, bl = getCornerPointsIsoRect(px, py, w, d)
-    # Transparent
-    # drawPolygon(*tt, *tr, *tb, *tl, border='black', borderWidth=0.5, opacity=30) # top
-    # drawPolygon(*tt, *tr, *tb, *tl, border='black', borderWidth=0.5, fill=None) # above
-    # drawPolygon(*tl, *bl, *bb, *tb, border='black', borderWidth=0.5, opacity=50) # left front
-    # drawPolygon(*tb, *tr, *br, *bb, border='black', borderWidth=0.5, opacity=80) # right front
-    # drawPolygon(*tl, *tt, *bt, *bl, border='grey', dashes=(2,4), borderWidth=0.5, fill=None) # left back
-    # drawPolygon(*tt, *tr, *br, *bt, border='grey', dashes=(2,4), borderWidth=0.5, fill=None) # right back
+def onStep(app):
+    setStatusBar(app)
+    if not app.startScreen:
+        assert(app.patternMode != app.pathMode)
 
-    # Opaque
-    drawPolygon(*tt, *tr, *tb, *tl, border='black', borderWidth=0.3, fill='white') # top
-    # drawPolygon(*tt, *tr, *tb, *tl, border='black', borderWidth=0.3, fill=None) # above
-    drawPolygon(*tl, *bl, *bb, *tb, border='black', borderWidth=0.3, fill='gray') # left front
-    drawPolygon(*tb, *tr, *br, *bb, border='white', borderWidth=0.3, fill='black') # right front
+def setStatusBar(app):
+    ''' Writes messages and status of game on top of page'''
+    # default
+    if app.pathMode:
+        app.status = "Press S and select and place START tile       Press E and select and place END tile       Press P to generate PATH"
+    if app.patternMode:
+        app.status = "Press Z to select tiles       Press W to generate 3d PATTERN     Press R to RESTART"
+    if app.settingHome:
+        app.status = "Select a START tile rotate and drop it on the board"
+    if app.settingDest:
+        app.status = "Select a END tile rotate and drop it on the board"
+    if app.selectTileSet:
+        app.status = "Click on tiles to add to your set     Press Z when done adding        Press R to RESTART "
+
+## Draw
+def redrawAll(app):
+    
+
+    drawTileSet(app)
+    drawGrid(app)        
+    drawBoard(app) 
+    drawLevelGuide(app)
+    drawMovingTile(app)
+    drawPossibleTiles(app)
+
+    drawStatusBar(app)
+    if app.startScreen:
+        drawStartScreen(app)
+
+        
+def drawStartScreen(app):
+    drawRect(0, 0, app.width, app.height, fill='black', opacity=70)
+    drawLabel("CUBE SCAPER", app.width//2, app.height//2-75, size=40, fill='white', font='montserrat', align='center', italic=True)
+    drawLabel("What are we scaping?", app.width//2, app.height//2, size=24, fill='white', font='montserrat', align='center', italic=True)
+    drawLabel("0: Pattern        1: Path", app.width//2, app.height//2+50, size=24, fill='white', font='montserrat', align='center')
+    
+def drawStatusBar(app):
+    # drawLabel(app.status, 40, 30, size=16, font='montserrat', align='left', italic=True)
+    drawLabel(app.status, app.width-30, 30, size=12, font='montserrat', align='right', italic=True)
+    if app.pathMode:
+        drawLabel("PATH MODE", 35, 30, size=16, font='montserrat', align='left')
+    if app.patternMode:
+        drawLabel("PATTERN MODE", 35, 30, size=16, font='montserrat', align='left')
 
 
-def getCornerPointsIsoRect(ix, iy, w, h):
-    ''' Given pixel coordinate of top point of iso rectangle cx, cy
-        and width and height of cartesian rectangle
-        return coordinates of four corners of isometric rectangle
-        in order of top, right, above, left '''
-    # # points in clockwise order
-    # 1 2
-    # 4 3
-    #   1
-    # 4   2
-    #   3
-
-    # cx , cy is top left corner of cartesian rectangle
-    cx, cy = isoToCart(ix, iy)
-    
-    tl_x, tl_y = cx  , cy
-    tr_x, tr_y = cx+w, cy
-    br_x, br_y = cx+w, cy+h
-    bl_x, bl_y = cx  , cy+h
-    
-    iso_t_x, iso_t_y = cartToIso(tl_x, tl_y)
-    iso_r_x, iso_r_y = cartToIso(tr_x, tr_y)
-    iso_b_x, iso_b_y = cartToIso(br_x, br_y)
-    iso_l_x, iso_l_y = cartToIso(bl_x, bl_y)
-    
-    # drawRect(tl_x, tl_y, w, h, opacity=20)
-    return [(iso_t_x, iso_t_y), (iso_r_x, iso_r_y), (iso_b_x, iso_b_y), (iso_l_x, iso_l_y)]
-
-def drawIsoRect(ix, iy, w, h, b='black', f=None, o=100, b_w=0.5):
-    ''' Given '''
-    # ix, iy is top point of isometric rect
-    cx, cy = isoToCart(ix, iy)
-    
-    # # points in clockwise order
-    # 1 2
-    # 4 3
-    #   1
-    # 4   2
-    #   3
-    tl_x, tl_y = cx  , cy
-    tr_x, tr_y = cx+w, cy
-    br_x, br_y = cx+w, cy+h
-    bl_x, bl_y = cx  , cy+h
-    
-    
-    iso_t_x, iso_t_y = cartToIso(tl_x, tl_y)
-    iso_r_x, iso_r_y = cartToIso(tr_x, tr_y)
-    iso_b_x, iso_b_y = cartToIso(br_x, br_y)
-    iso_l_x, iso_l_y = cartToIso(bl_x, bl_y)
-    
-    # drawRect(tl_x, tl_y, w, h, opacity=20)
-    drawPolygon(iso_t_x, iso_t_y, iso_r_x, iso_r_y, iso_b_x, iso_b_y, 
-                iso_l_x, iso_l_y, border=b ,borderWidth=b_w, opacity=o, 
-                fill=f)  
 
 def drawIsoGridTiles(app, level, b='gray', f=None, label=False, b_w=0.5, o=50):
     ''' Given level, draw isometric grid where each grid is tile dimension
@@ -570,12 +514,7 @@ def drawIsoGridCubes(app, z, b='lightGray', f=None, label=False, b_w=0.2, o=100)
             #             fill="blue", opacity=80) 
 
 
-def drawCartGrid(cx, cy, rows, cols, d): ####### NO USE
-    for r in range(rows):
-        for c in range(cols):
-            drawRect(cx+r*d,cy+c*d, d, d, border='black', borderWidth=1, fill=None, opacity=40)
-            drawLabel(f"{r},{c}", cx+r*d +0.5*d, cy+c*d + 0.5*d, size=10, font='arial', 
-                      fill="orange", opacity=80)
+
                       
 ## Tile Functions ##
 # 1. Tile set window
@@ -622,8 +561,8 @@ def drawTileOnCanvas(app, tile, px, py):
 def drawTileSet(app):
     ''' Draws tile set on left side of page'''
     # tile set window
-    drawRect(app.tileWin_l, app.tileWin_t, app.tileWin_w, app.tileWin_h,
-             border='darkSeaGreen', fill=None)
+    # drawRect(app.tileWin_l, app.tileWin_t, app.tileWin_w, app.tileWin_h,
+    #          border=None, fill='lightblue', opacity=10)
 
     # region for each tile
     tile_margin = 10
@@ -645,6 +584,11 @@ def drawTileSet(app):
         col_i = i%3
         px = l + col_i*1.25*ph_w+ph_w/2 # start + column index * (ph_w + 0.25*ph_(margin)) + ph_w/2
         py = t + row_i*1.25*ph_h+ph_h/2
+        
+        # place holder region
+        drawPolygon(px-0.5*ph_w, py-0.5*ph_h, px+0.5*ph_w, py-0.5*ph_h, 
+                    px+0.5*ph_w, py+0.5*ph_h, px-0.5*ph_w, py+0.5*ph_h, borderWidth=1,
+                    fill='lightgray', border=None, opacity=20)
 
         # set tile object pixel coordinate    
         tile.px = px
@@ -656,10 +600,6 @@ def drawTileSet(app):
         # draw tile
         drawTileOnCanvas(app, tile, px, py)
 
-        # place holder region
-        drawPolygon(px-0.5*ph_w, py-0.5*ph_h, px+0.5*ph_w, py-0.5*ph_h, 
-                    px+0.5*ph_w, py+0.5*ph_h, px-0.5*ph_w, py+0.5*ph_h, borderWidth=1,
-                    fill=None, border='yellowGreen', dashes=True)
 
 def drawTileBound(app, tile, b='lightSkyBlue', b_w=1, f=None, o=80, d=(1,3)):
     ''' Draw tile bounds
@@ -744,7 +684,7 @@ def drawGrid(app):
 
     # iso grid window border
     drawRect(app.gridWin_l, app.gridWin_t, app.gridWin_w, app.gridWin_h,
-             border='skyBlue', fill=None)
+             border='lightgray', fill=None)
     
     # top pixel coordinates of grid
     # grid_ix, grid_iy = app.gridWin_l + app.gridWin_w/2, app.gridWin_t + app.tileDim * (app.levels + 2)
@@ -824,7 +764,7 @@ def drawMovingTile(app):
             drawTileOnCanvas(app, app.currentTile, app.currentTile.px, app.currentTile.py)
         else:
             drawTileOnBoard(app, app.currentTile, app.currentTile.l, app.currentTile.r, app.currentTile.c)
-        
+    
 
 def drawTileOnBoard(app, tile, l, r, c):
     '''Given Tile object, and board_tile index
