@@ -93,7 +93,7 @@ Lh_Lv.map = np.array([
          [1, 0, 0]]
         ])
 
-Lh_Lv_Liv = TileStartEnd("5_4", 5, 4) #flipped
+Lh_Lv_Liv = TileStartEnd("4_5", 4, 5)
 Lh_Lv_Liv.map = np.array([
         [[0, 0, 1],
          [0, 0, 1],

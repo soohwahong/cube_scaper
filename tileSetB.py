@@ -10,6 +10,17 @@ XZ = TilePattern("XZ")
 XYZ = TilePattern("XYZ")
 
 
+def resetTileSetB():
+        defaultColor = "lightGray"
+        X.background = defaultColor
+        Y.background = defaultColor
+        Z.background = defaultColor
+        XY.background = defaultColor
+        YZ.background = defaultColor
+        XZ.background = defaultColor
+        XYZ.background = defaultColor
+        return tileSetB
+
 # no rotation allowed!
 
 xFam = [X, XY, XZ, XYZ]

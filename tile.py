@@ -41,6 +41,9 @@ class Tile:
         self.adjAbove = []
         self.adjUnder = []
 
+        # selected 
+        self.background = "lightGray"
+
     def __repr__(self):
         # return f'{self.name}({self.rotated})'
         return self.name

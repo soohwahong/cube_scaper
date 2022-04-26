@@ -122,8 +122,9 @@ def onAppStart(app):
     app.holdingTile = False
     app.currentTile = None
 
-    # drawing reference
+    # level guide
     app.currentLevel = 0
+    app.levelGuide = True
 
     # Path Finding
     app.pathMode = False # differentiate between pattern and path mode
@@ -189,6 +190,8 @@ def onKeyPress(app, key):
             app.currentLevel += 1
         if (key == 'down') and (app.currentLevel>0):
             app.currentLevel -= 1
+        if key.lower() == 'l':
+            app.levelGuide = not app.levelGuide
 
         # Rotate board
         if (key == 'right'):
@@ -206,9 +209,11 @@ def onKeyPress(app, key):
         if key.lower() == 'p':
             res = pathFind(app)
             if res == None:
-                print("Couldn't find path")
+                app.status = "Path not found. Try selecting a different START and END."
+                print("Path not found!")
             else:
-                print("Found path!")
+                app.status = "We found a path!"
+                print("Path found!")
             # app.pathFinding = True
             if key.lower() == 'm':
                 moveThruPath(app)
@@ -216,8 +221,9 @@ def onKeyPress(app, key):
         if key.lower() == 'r':
             clearBoard(app)
             if app.patternMode:
-                app.tileSet = tileSetB # reset tileSet
+                app.tileSet = resetTileSetB() # reset tileSet
                 app.modifiedTileSet.tiles = [] # reset modified tileSet
+
 
         if key.lower() == 'w':
             if app.patternMode:
@@ -226,9 +232,13 @@ def onKeyPress(app, key):
         if key.lower() == 'z':
             if app.patternMode:
                 app.selectTileSet = not app.selectTileSet # switch modes on and off
+                
                 if app.selectTileSet:
                     print("selecting tiles")
                 if app.selectTileSet == False:
+                    # revert background color
+                    for tile in app.modifiedTileSet.tiles:
+                        tile.background = "lightGray" 
                     app.tileSet = copy.deepcopy(app.modifiedTileSet)
 
         if key.lower() == 'h':
@@ -258,9 +268,11 @@ def rotateBoard(app):
     
 
 def onMousePress(app, mouseX, mouseY):
-    # tile selecting node in pattern mode on key press 's'
+    # tile selecting mode in pattern mode on key press 's'
     if app.patternMode and app.selectTileSet:
         select = isTileSelect(app, mouseX, mouseY)
+        for tile in app.tileSet.tiles:
+            if select == tile: tile.background = "red"
         if select != None:
             if select not in app.modifiedTileSet.tiles:
                 app.modifiedTileSet.tiles.append(select)
@@ -334,7 +346,8 @@ def isTileSelect(app, mouseX, mouseY):
     for tile in app.tileSet.tiles:
         if ((tile.px-app.tileDim < mouseX < tile.px+app.tileDim)
             and (tile.py-app.tileDim < mouseY < tile.py+app.tileDim)):
-            return copy.deepcopy(tile)
+            selected_tile = copy.deepcopy(tile)
+            return selected_tile
     return None
 
 def inBoardRegion(app, mouseX, mouseY):
@@ -453,7 +466,7 @@ def redrawAll(app):
     drawBoard(app) 
     drawLevelGuide(app)
     drawMovingTile(app)
-    drawPossibleTiles(app)
+    # drawPossibleTiles(app)
 
     drawStatusBar(app)
     drawStationaryText(app)
@@ -605,8 +618,7 @@ def drawTileSet(app):
         # place holder region
         drawPolygon(px-0.5*ph_w, py-0.5*ph_h, px+0.5*ph_w, py-0.5*ph_h, 
                     px+0.5*ph_w, py+0.5*ph_h, px-0.5*ph_w, py+0.5*ph_h, borderWidth=1,
-                    fill='lightgray', border=None, opacity=20)
-
+                    fill=tile.background, border=None, opacity=20)
         # set tile object pixel coordinate    
         tile.px = px
         tile.py = py
@@ -716,10 +728,11 @@ def drawGrid(app):
 def drawLevelGuide(app):
     ''' draws level guide'''
     level = app.currentLevel
-    # drawIsoGridTiles(app, level, label=True, o=30, f='lightSkyBlue')
-    drawIsoGridTiles(app, level, label=True, o=100, f=None)
-    drawIsoGridCubes(app, level*app.tileSize)
-    drawPossibleTiles(app)
+    if app.levelGuide:
+        # drawIsoGridTiles(app, level, label=True, o=30, f='lightSkyBlue')
+        drawIsoGridTiles(app, level, label=True, o=100, f=None)
+        drawIsoGridCubes(app, level*app.tileSize)
+        drawPossibleTiles(app)
 
     
 def drawBoard(app):
