@@ -21,7 +21,7 @@ class Tile:
         # px, py pixel coordinate of center of tile : to move and place tile
         self.px = -1
         self.py = -1
-        # x,y,z coordinate on board
+        # l,r,c coordinate on board
         self.onBoard = False # if moving on board, snaps to board, else draw on pixel coordinate
         self.l = -1
         self.r = -1
@@ -94,6 +94,22 @@ class TileStartEnd(Tile):
         elif self.end == 4: self.end = 1
         else:
             self.end += 1
+    
+    # def __eq__(self, other):
+    #     if (
+    #         isinstance(other, Tile) \
+    #         and (self.name == other.name) 
+    #         and (self.l == other.l)
+    #         and (self.r == other.r)
+    #         and (self.c == other.c)
+    #         and (self.rotated == other.rotated)
+    #         ):
+    #         print(f'self = {self.name, self.l, self.r, self.c, self.rotated}')
+    #         print(f'other = {other.name, other.l, other.r, other.c, other.rotated}')
+    #         return True
+    #     else:
+    #         print(f'{self}, {type(other)}' ) # comparing with int??
+    #         return False
 
 class TilePattern(Tile):
     ''' Create tile that generates pattern'''

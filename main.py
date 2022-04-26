@@ -139,6 +139,7 @@ def onAppStart(app):
     app.outputBoard = dict() # dictionary of list of what tiles can come based on adjacency rules 
     initOutputBoard(app)
     # print(app.outputBoard)
+    app.foundPattern = False
 
     # selecting subset of tiles
     app.selectTileSet = False
@@ -166,13 +167,13 @@ def initOutputBoard(app):
 
 def onKeyPress(app, key):
     if app.startScreen:
-        if key == '1':
+        if key == '1': # path finding mode
             app.pathMode = True
             app.patternMode = False
-            app.tileSet = tileSetA
+            app.tileSet = tileSetB
             app.startScreen = False
 
-        elif key == '0':
+        elif key == '0': # pattern finding mode
             app.patternMode = True
             app.pathMode = False
             app.tileSet = tileSetB
@@ -223,6 +224,7 @@ def onKeyPress(app, key):
             if app.patternMode:
                 app.tileSet = resetTileSetB() # reset tileSet
                 app.modifiedTileSet.tiles = [] # reset modified tileSet
+                app.foundPattern = False
 
 
         if key.lower() == 'w':
@@ -235,11 +237,17 @@ def onKeyPress(app, key):
                 
                 if app.selectTileSet:
                     print("selecting tiles")
-                if app.selectTileSet == False:
+                if app.selectTileSet == False: # finalize tile set
                     # revert background color
                     for tile in app.modifiedTileSet.tiles:
                         tile.background = "lightGray" 
                     app.tileSet = copy.deepcopy(app.modifiedTileSet)
+                    # reduce outputBoard to tileSet
+                    for l in range(app.levels):
+                        for r in range(app.rows):
+                            for c in range(app.cols):
+                                app.outputBoard[(l,r,c)] = copy.deepcopy(app.tileSet.tiles)
+
 
         if key.lower() == 'h':
             clearBoard(app)
@@ -426,6 +434,12 @@ def tileIndexToPixel(app, l, r, c):
     # return int(tx), int(ty)
     return tx, ty
 
+def getTileCenterCubeInd(app, tile):
+    '''Given tile, take its l,r,c index on board and return center (1,1,1) cube index z,x,y on board'''
+    d = app.tileSize
+    z, x, y = tile.l*d, tile.r*d, tile.c*d
+    return (z+1, x+1, y+1)
+
 def cubeIndexToPixel(app, z, x, y):
     '''Given 3d board coordinate of cube unit z, y, x
     Return pixel coordinate of origin point(center) cx, cy
@@ -449,13 +463,15 @@ def setStatusBar(app):
     if app.pathMode:
         app.status = "Press S and select and place START tile       Press E and select and place END tile       Press P to generate PATH"
     if app.patternMode:
-        app.status = "Press Z to select tiles       Press W to generate 3d PATTERN     Press R to RESTART"
+        app.status = "Press Z to select tiles       Press W to generate 3d PATTERN"
+        if app.foundPattern:
+            app.status = "Generated full board!"
     if app.settingHome:
         app.status = "Select a START tile rotate and drop it on the board"
     if app.settingDest:
         app.status = "Select a END tile rotate and drop it on the board"
     if app.selectTileSet:
-        app.status = "Click on tiles to add to your set     Press Z when done adding        Press R to RESTART "
+        app.status = "Click on tiles to add to your set     Press Z when done adding"
 
 ## Draw
 def redrawAll(app):
@@ -484,17 +500,17 @@ def drawStatusBar(app):
     # drawLabel(app.status, 40, 30, size=16, font='montserrat', align='left', italic=True)
     drawLabel(app.status, app.width-30, 30, size=14, font='montserrat', fill='darkOrange', align='right', italic=True)
     if app.startScreen:
-        drawLabel("Hello", 35, 30, size=16, font='montserrat', align='left')
-    if app.pathMode:
+        drawLabel("HELLO", 35, 30, size=16, font='montserrat', align='left')
+    elif app.pathMode:
         drawLabel("PATH MODE", 35, 30, size=16, font='montserrat', align='left')
-    if app.patternMode:
+    elif app.patternMode:
         drawLabel("PATTERN MODE", 35, 30, size=16, font='montserrat', align='left')
 
 def drawStationaryText(app):
     # board bottom left
     drawLabel("Return to Home : H", app.gridWin_l+15, app.gridWin_t+app.gridWin_h-15, size=12, fill='gray', font='montserrat', align='left')
     # board bottom right
-    drawLabel("Clear Board : C", app.gridWin_l+app.gridWin_w-15, app.gridWin_t + app.gridWin_h-30, size=12, fill='gray', font='montserrat', align='right')
+    drawLabel("Clear All : R", app.gridWin_l+app.gridWin_w-15, app.gridWin_t + app.gridWin_h-30, size=12, fill='gray', font='montserrat', align='right')
     drawLabel("Rotate Board : → ", app.gridWin_l+app.gridWin_w-15, app.gridWin_t + app.gridWin_h-15, size=12, fill='gray', font='montserrat', align='right')
     # board top left
     drawLabel("Rotate Tile : T", app.gridWin_l+15, app.gridWin_t +15, size=12, fill='gray', font='montserrat', align='left')
@@ -568,25 +584,34 @@ def drawTileOnCanvas(app, tile, px, py):
         tt, tr, tb, tl = getCornerPointsIsoRect(cx, cy-d, d, d)
         bt, br, bb, bl = getCornerPointsIsoRect(cx, cy, d, d)
 
-        if z==levels-1 or tile.map[z+1, x, y] != 1:
-            drawPolygon(*tt, *tr, *tb, *tl, border='black', borderWidth=0.3, fill='white') # draw top    
-        if y==cols-1 or tile.map[z, x, y+1] != 1:
-            drawPolygon(*tl, *bl, *bb, *tb, border='black', borderWidth=0.3, fill='gray') # draw left front
-        if x==rows-1 or tile.map[z, x+1, y] != 1:
-            drawPolygon(*tb, *tr, *br, *bb, border='white', borderWidth=0.3, fill='black') # draw right front
+        if app.pathMode and ((z,y,x) == (1,1,1)): # in path finding mode, the center of tile is red
+            if z==levels-1 or tile.map[z+1, x, y] != 1:
+                drawPolygon(*tt, *tr, *tb, *tl, border='black', borderWidth=0.3, fill='lightCoral') # draw top    
+            if y==cols-1 or tile.map[z, x, y+1] != 1:
+                drawPolygon(*tl, *bl, *bb, *tb, border='black', borderWidth=0.3, fill='fireBrick') # draw left front
+            if x==rows-1 or tile.map[z, x+1, y] != 1:
+                drawPolygon(*tb, *tr, *br, *bb, border='black', borderWidth=0.3, fill='darkRed') # draw right front
 
-        if app.pathMode:
-            # indicate start and end constraint
-            # print(f'{tile.start, tile.end}')
-            startCube = app.tileSet.constraintDict[tile.start]
-            endCube = app.tileSet.constraintDict[tile.end]
-            # print(f'{tile.name, startCube, endCube}')
-            if tile.start != 0:
-                if (z,x,y) == startCube:
-                    drawCircle(int(cx),int(cy), 3, fill='green') # start has green dot on above left corner
-            if tile.end != 0:
-                if (z,x,y) == endCube:
-                    drawCircle(int(cx),int(cy), 3, fill='red') # end has red dot on top right corner
+        else:
+            if z==levels-1 or tile.map[z+1, x, y] != 1:
+                drawPolygon(*tt, *tr, *tb, *tl, border='black', borderWidth=0.3, fill='white') # draw top    
+            if y==cols-1 or tile.map[z, x, y+1] != 1:
+                drawPolygon(*tl, *bl, *bb, *tb, border='black', borderWidth=0.3, fill='gray') # draw left front
+            if x==rows-1 or tile.map[z, x+1, y] != 1:
+                drawPolygon(*tb, *tr, *br, *bb, border='white', borderWidth=0.3, fill='black') # draw right front
+
+        # if app.pathMode:
+        #     # indicate start and end constraint
+        #     # print(f'{tile.start, tile.end}')
+        #     startCube = app.tileSet.constraintDict[tile.start]
+        #     endCube = app.tileSet.constraintDict[tile.end]
+        #     # print(f'{tile.name, startCube, endCube}')
+        #     if tile.start != 0:
+        #         if (z,x,y) == startCube:
+        #             drawCircle(int(cx),int(cy), 3, fill='green') # start has green dot on above left corner
+        #     if tile.end != 0:
+        #         if (z,x,y) == endCube:
+        #             drawCircle(int(cx),int(cy), 3, fill='red') # end has red dot on top right corner
 
 def drawTileSet(app):
     ''' Draws tile set on left side of page'''
@@ -809,23 +834,52 @@ def drawTileOnBoard(app, tile, l, r, c):
 
 
 ## Path Finding ##
+
+def isPath(app):
+    ''' Checks if board currently has path
+        Returns cube unit path regardless of tiles on board
+        User manually places tile on board and checks '''
+    
+    
+
+
+########OLD##########
 def pathFind(app):
     '''Given home tile and goal tile, 
        create sequence of tiles starting from home to goal'''
+    print(f'START = {app.home} END = {app.dest}')
     return pathFindHelper(app, app.home, 0)
+
+def isDestination(app, current):
+    ''' Checks if current tile is destination tile in path finding mode'''
+    if (isinstance(app.dest, TileStartEnd) == False): 
+        print(f'You have not set END tile!')
+        app.status = "You have not set END tile!"
+        return False
+    if (isinstance(current, TileStartEnd) == False): 
+        print(f'current is {type(current)} and not a tile!')
+        return False
+    elif (current.name != app.dest.name): return False
+    elif (current.l != app.dest.l): return False
+    elif (current.r != app.dest.r): return False
+    elif (current.c != app.dest.c): return False
+    elif (current.rotated != app.dest.rotated): return False
+    else:
+        return True
 
 def pathFindHelper(app, current, depth):
     ''' Given current tile, search neighbors for valid next tile 
         Recursively search next tile
         Backtrack if no possible next neighbor'''
     
-    # Check Terminal State : current step is destination
-    if current == app.dest: return app.dest
-    # Recursive step : for neighbors of current(next), for each rotation, 
-    #                  place if current , next meet
-    # Backtrack : not at destination and neighbors is empty
+    # # Check Terminal State : current step is destination
+    # if isDestination(app, current): 
+    #     return app.dest
+    # # Recursive step : for neighbors of current(next), for each rotation, 
+    # #                  place if current , next meet
+    # # Backtrack : not at destination and neighbors is empty
+
     print(f'\nFinding Path at depth {depth}..')
-    print(f'current = {current, current.l, current.r, current.c}')
     neighbors = getNextNeighbors(app, current) # list of 3 neighboring tile coordinates of current.end on board
     print(f'next tiles = {neighbors}')
 
@@ -834,24 +888,34 @@ def pathFindHelper(app, current, depth):
         return None
 
     for nl, nr, nc in neighbors:
-        if app.board_tiles[nl,nr,nc] == app.dest and TilesMeet(current, app.board_tiles[nl,nr,nc]): 
-            return app.dest # do we need this step?
+        # Check Terminal State : current step is destination
+        if app.board_tiles[nl,nr,nc] != None:
+            if isDestination(app, app.board_tiles[nl,nr,nc]) and TilesMeet(current, app.board_tiles[nl,nr,nc]): 
+                print(f'reached destination')
+                # print(f'res = {res, res.l, res.r, res.c}')
+                # print(f'next = {next, next.l, next.r, next.c}')
+                print(f'current = {current, current.l, current.r, current.c}')
+                print(f'END = {app.dest, app.dest.l, app.dest.r, app.dest.c}')
+                return app.dest 
+
         if app.board_tiles[nl,nr,nc] == None:
             for t in app.tileSet.tiles:
                 next = copy.deepcopy(t)
                 next.l, next.r, next.c = nl,nr,nc
                 for _ in range(4):
                     next.rotate()
-                    print(f'next is {next, next.l, next.r, next.c}')
                     if TilesMeet(current, next):
-                        print(f'Placing {next, next.l, next.r, next.c}')
+                        # print(f'Placing {next, next.l, next.r, next.c, next.rotated}')
                         placeTileOnBoard(app, next, next.l, next.r, next.c)
                         res = pathFindHelper(app, next, depth+1)
-                        if res == app.dest: return app.dest
+                        # if isDestination(app, res): 
+                        if res != None:
+                            print('returning path')
+                            return res
                         else:
                             removeTileFromBoard(app, next, next.l, next.r, next.c)
         
-            return None
+    return None
 
 def getPreviousNeighbors(app, tile):
     '''Given tile, 
@@ -966,75 +1030,80 @@ def TilesMeet(current, compare):
         return False
     if current.l - compare.l == 1: # current on top of compare
         if current.end > 4: 
-            print('above')
+            # print('above')
             return False # current end on top side!
         if compare.start - current.end != 4: 
-            print("above diff")
+            # print("above diff")
             return False
     if current.l - compare.l == -1: # current under compare
         if current.end < 5: 
-            print("under")
+            # print("under")
             return False # current end on above side!
         if current.end - compare.start != 4: 
-            print("under diff")
+            # print("under diff")
             return False
     
     if current.r - compare.r == 1: # current on right side of compare
         if current.end not in [1,4,5,8]: 
-            print("right")
+            # print("right")
             return False # current end on left side
         if current.end in [1,5]:
             if compare.start != current.end+1: 
-                print("right diff1")
+                # print("right diff1")
                 return False
         if current.end in [4,8]:
             if compare.start != current.end-1: 
-                print("right diff2")
+                # print("right diff2")
                 return False
     
     if current.r - compare.r == -1: # current on left side of compare
         if current.end not in [2,3,6,7]: 
-            print("left")
+            # print("left")
             return False # current end on right side!
         if current.end in [3,7]:
             if compare.start != current.end+1:
-                print("left diff1")
+                # print("left diff1")
                 return False
         if current.end in [2,6]:
             if compare.start != current.end-1: 
-                print("left diff2")
+                # print("left diff2")
                 return False
         
     if current.c - compare.c == 1: # current on front side of compare
         if current.end not in [1,2,5,6]: 
-            print("front")
+            # print("front")
             return False # current end on left side!
         if current.end in [2,6]:
             if compare.start != current.end+1: 
-                print("front diff1")
+                # print("front diff1")
                 return False
         if current.end in [1,5]:
             if compare.start != current.end+3: 
-                print("front diff2")
+                # print("front diff2")
                 return False
     if current.c - compare.c == -1: # current on back side of compare
         if current.end not in [3,4,7,8]: 
-            print("back")
+            # print("back")
             return False # current end on right side
         if current.end in [3,7]:
             if compare.start != current.end-1: 
-                print("back diff1")
+                # print("back diff1")
                 return False
         if current.end in [4,8]:
             if compare.start != current.end-3: 
-                print("back diff2")
+                # print("back diff2")
                 return False
     return True
-                
+
+########OLD##########
+
+
+
+
 
 ## Pattern Generation ##
 def patternGenerate(app):
-    print(f'We are currently using tiles : {app.tileset.tiles}')
+    # print(f'We are currently using tiles : {app.tileSet.tiles}')
     # start at 0,0,0
     start = (0,0,0)
     placeTileOnBoard(app, random.choice(app.tileSet.tiles), *start)
@@ -1045,7 +1114,8 @@ def patternGenerateHelper(app, path):
     pathSet = set(path)
     # base case : if all tiles have length one
     if len(path) == app.levels * app.rows * app.cols:
-        print("Generated Full Map!")
+        # print("Generated Full Map!")
+        app.foundPattern = True
         return path
 
     # for all neighboring tiles not in path
