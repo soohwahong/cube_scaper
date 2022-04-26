@@ -1034,6 +1034,7 @@ def TilesMeet(current, compare):
 
 ## Pattern Generation ##
 def patternGenerate(app):
+    print(f'We are currently using tiles : {app.tileset.tiles}')
     # start at 0,0,0
     start = (0,0,0)
     placeTileOnBoard(app, random.choice(app.tileSet.tiles), *start)
