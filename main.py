@@ -8,6 +8,8 @@ from matplotlib import path
 from tileSetA import *
 from tileSetB import *
 from wfc import *
+import random
+from isometric import *
 
 ''' Resources 
     1. Isometric Projection
@@ -38,6 +40,17 @@ TODO
     - make start, end more visible
 '''
 
+
+''' TODO
+post mvp 
+path finding mode
+UI to switch tileset
+    - light up tiles 
+UI to switch modes 
+    - label saying " We are in path finding mode" 
+UI instructions 
+
+'''
 def onAppStart(app):
     # app.setMaxShapeCount(100000)
 
@@ -98,6 +111,9 @@ def onAppStart(app):
     initOutputBoard(app)
     # print(app.outputBoard)
 
+    app.selectTileSet = False
+    app.modifiedTileSet = TileSet("mod_tileSetB")
+
 
 def initOutputBoard(app):
     '''dictionary where
@@ -153,6 +169,22 @@ def onKeyPress(app, key):
 
     if key == 'r':
         clearBoard(app)
+        if app.patternMode:
+            app.tileSet = tileSetB # reset tileSet
+            app.modifiedTileSet.tiles = [] # reset modified tileSet
+
+    if key == 'w':
+        if app.patternMode:
+            patternGenerate(app)
+
+    if key == 's':
+        if app.patternMode:
+            app.selectTileSet = not app.selectTileSet # switch modes on and off
+            if app.selectTileSet:
+                print("selecting tiles")
+            if app.selectTileSet == False:
+                app.tileSet = copy.deepcopy(app.modifiedTileSet)
+
 
 def clearBoard(app):
     app.holdingTile = False
@@ -181,7 +213,17 @@ def rotateBoard(app):
     
 
 def onMousePress(app, mouseX, mouseY):
-    if not app.holdingTile: # not holding tile
+    # tile selecting node in pattern mode on key press 's'
+    if app.patternMode and app.selectTileSet:
+        select = isTileSelect(app, mouseX, mouseY)
+        if select != None:
+            if select not in app.modifiedTileSet.tiles:
+                app.modifiedTileSet.tiles.append(select)
+        
+
+
+
+    elif not app.holdingTile: # not holding tile
         # Case 1: Selecting tile anew to add to board
         select = isTileSelect(app, mouseX, mouseY)
         if select != None:
@@ -198,7 +240,7 @@ def onMousePress(app, mouseX, mouseY):
             if isTileLegalOnBoard(app, app.currentTile, app.currentTile.l, app.currentTile.r, app.currentTile.c):
                 # place tile on board
                 placeTileOnBoard(app, app.currentTile, app.currentTile.l, app.currentTile.r, app.currentTile.c)
-                print(f'current board = \n{app.board_tiles}')
+                # print(f'current board = \n{app.board_tiles}')
                 
                 # if setting home, placed tile is home
                 if app.settingHome:
@@ -211,7 +253,9 @@ def onMousePress(app, mouseX, mouseY):
                 # revert app attributes related to holding tile
                 app.currentTile = None
                 app.holdingTile = False
-
+    
+        
+        
 
 
 
@@ -368,7 +412,8 @@ def drawStatusBar(app):
         label = "Pick a Home tile, rotate and drop it on the Board"
     if app.settingDest:
         label = "Pick a Destination tile, rotate and drop it on the Board"
-    
+    if app.selectTileSet:
+        label = "Click on tile to add ...."
     drawLabel(label, 50, 25, size=16, font='montserrat', align='left')
 
 ## Isometric Functions ##
@@ -662,93 +707,8 @@ def placeTileOnBoard(app, tile, l, r, c):
     # in Pattern Mode reduce outcome board 
     if app.patternMode:
         # reduce outcomeboard of neghbors and propogate through entire grid
-        reduceNeighbors(app, tile, l, r, c)
-        app.outputBoard[(l,r,c)] = set([tile])
-
-#### TODO ####
-def reduceNeighbors(app, tile, l, r, c):
-    reduceNeighborsHelper(app, tile, l,r,c)
-
-def reduceNeighborsHelper(app, tile, l, r, c):
-    # toCheckQueue = [] # nl,nr,nc coordinates of neighbors to check
-    # checkedNeighbors = set() # coordinates that are already checked, no reduction 
-
-    # for all 6 neighboring directions
-    under, above, left, right, top, bottom = getAllNeighbors(app,l,r,c) # coordinate of neighbors
-    # take off queue, reduce neighbors, if changed, add neighbors to queue
-
-    # retrieve list of possible tiles
-    u_poss = app.outputBoard[under]  if len(under)!=0 else []
-    a_poss = app.outputBoard[above]  if len(above)!=0 else []
-    l_poss = app.outputBoard[left]   if len(left)!=0 else []
-    r_poss = app.outputBoard[right]  if len(right)!=0 else []
-    t_poss = app.outputBoard[top]    if len(top)!=0 else []
-    b_poss = app.outputBoard[bottom] if len(bottom)!=0 else []
-
-    # print(u_poss, a_poss, l_poss, r_poss, t_poss, b_poss)
-
-    # base case : all neighbors are designated, or all empty lists
-    if  (len(u_poss)==0 or len(u_poss)==1) and \
-        (len(a_poss)==0 or len(a_poss)==1) and \
-        (len(l_poss)==0 or len(l_poss)==1) and \
-        (len(r_poss)==0 or len(r_poss)==1) and \
-        (len(t_poss)==0 or len(t_poss)==1) and \
-        (len(b_poss)==0 or len(b_poss)==1):
-        return app.outputBoard
-    
-    # reduce neighbors - lists
-    u_comp = tile.adjUnder
-    a_comp = tile.adjAbove
-    l_comp = tile.adjLeft
-    r_comp = tile.adjRight
-    t_comp = tile.adjTop
-    b_comp = tile.adjBottom
-    # print(u_comp, a_comp, l_comp, r_comp, t_comp, b_comp)
-    
-    # compare existing list and possible
-    # leave only those that are possible in output board
-    new_u_poss = set()
-    new_a_poss = set()
-    new_l_poss = set()
-    new_r_poss = set()
-    new_t_poss = set()
-    new_b_poss = set()
-    
-    for u_t in u_poss:
-        if u_t in u_comp: new_u_poss.add(u_t)
-    for a_t in a_poss:
-        if a_t in a_comp: new_a_poss.add(a_t)
-    for l_t in l_poss:
-        if l_t in l_comp: new_l_poss.add(l_t)
-    for r_t in r_poss:
-        if r_t in r_comp: new_r_poss.add(r_t)
-    for t_t in t_poss:
-        if t_t in t_comp: new_t_poss.add(t_t)
-    for b_t in t_poss:
-        if b_t in b_comp: new_b_poss.add(b_t)
-
-    app.outputBoard[under]  = list(new_u_poss)
-    app.outputBoard[above]  = list(new_a_poss)
-    app.outputBoard[left]   = list(new_l_poss)
-    app.outputBoard[right]  = list(new_r_poss)
-    app.outputBoard[top]    = list(new_t_poss)
-    app.outputBoard[bottom] = list(new_b_poss)
-        # if list has changed,
-        # check 6 neighbors and leave only those that are possible in output board
-
-
-def getAllNeighbors(app,l,r,c):
-    ''' returns list of coordinate (l,r,c) of 
-        under, above, left, right, top, bottom neighbors
-        blank tuple if wall'''
-    under   = (l-1,r,c) if l>0 else tuple()
-    above   = (l+1, r, c) if l<app.levels-1 else tuple()
-    left    = (l,r-1,c) if r>0 else tuple()
-    right   = (l,r+1,c) if r<app.rows-1 else tuple()
-    top     = (l,r,c-1) if c>0 else tuple()
-    bottom  = (l,r,c+1) if c<app.cols-1 else tuple()
-    
-    return ([under, above, left, right, top, bottom])
+        app.outputBoard[(l,r,c)] = [tile]
+        reduceNeighbors(app, l, r, c)
 
 
 
@@ -1104,8 +1064,157 @@ def TilesMeet(current, compare):
 
 ## Pattern Generation ##
 def patternGenerate(app):
-    # start at 
-    pass
+    # start at 0,0,0
+    start = (0,0,0)
+    placeTileOnBoard(app, random.choice(app.tileSet.tiles), *start)
+    path = [start] # stores l,c,r coordinates in order of selection
+    patternGenerateHelper(app, path)
+
+def patternGenerateHelper(app, path):
+    pathSet = set(path)
+    # base case : if all tiles have length one
+    if len(path) == app.levels * app.rows * app.cols:
+        print("Generated Full Map!")
+        return path
+
+    # for all neighboring tiles not in path
+    current = path[-1]
+    neighbors =  getAllNeighbors(app,*current)
+    for next in neighbors:
+        if next == () or (next in pathSet): continue
+        # if any of neighbors empty, backtrack
+        if len(app.outputBoard[next]) == 0:
+            path.pop()
+            return None
+
+        for tile in app.outputBoard[next]:
+            placeTileOnBoard(app, tile, *next)
+            path.append(next)
+            reduceNeighbors(app,*next)
+            patternGenerateHelper(app, path)
+    return None
+        
+
+def reduceNeighbors(app, l, r, c):
+    # add neighbors to check queue
+    # while queue is not empty,
+        # pop from queue
+        # reduce neighbors
+        # if reduced, add to queue
+
+    checkQueue = [(l,r,c)]
+    while len(checkQueue) != 0:
+        next = checkQueue.pop() # checking next neighbor
+        reduced = reduceNeighborsHelper(app, *next)
+        # if len(reduced) == 0:
+        if reduced == None or len(reduced)==0:
+            break
+        checkQueue += reduced
+        print(f' check queue is {checkQueue}')
+    return 
+
+def reduceNeighborsHelper(app, l, r, c):
+
+    # for each neighboring direction
+        # for each possible tile of neighbor
+            # if there is tile in current possible that meets constraints, keep tile in neighbor
+            # if no tile in current possible that meets constraints, delete from neighbor possible
+    
+    current_poss = app.outputBoard[l,r,c]
+    
+    # for all 6 neighboring directions
+    under, above, left, right, top, bottom = getAllNeighbors(app,l,r,c) # coordinate of neighbors
+
+    # retrieve list of possible tiles
+    u_poss = app.outputBoard[under]  if len(under)!=0 else []
+    a_poss = app.outputBoard[above]  if len(above)!=0 else []
+    l_poss = app.outputBoard[left]   if len(left)!=0 else []
+    r_poss = app.outputBoard[right]  if len(right)!=0 else []
+    t_poss = app.outputBoard[top]    if len(top)!=0 else []
+    b_poss = app.outputBoard[bottom] if len(bottom)!=0 else []
+    
+    
+    # if not designated, or finished tile, can reduce
+    if  not(\
+        (len(u_poss)==0 or len(u_poss)==1) and \
+        (len(a_poss)==0 or len(a_poss)==1) and \
+        (len(l_poss)==0 or len(l_poss)==1) and \
+        (len(r_poss)==0 or len(r_poss)==1) and \
+        (len(t_poss)==0 or len(t_poss)==1) and \
+        (len(b_poss)==0 or len(b_poss)==1)):
+        
+        # current possible tiles' compiled adjacencies
+        u_comp, a_comp, l_comp, r_comp, t_comp, b_comp = set(), set(), set(), set(), set(), set()
+        for tile in current_poss:
+            u_comp.update(tile.adjUnder)
+            a_comp.update(tile.adjAbove)
+            l_comp.update(tile.adjLeft)
+            r_comp.update(tile.adjRight)
+            t_comp.update(tile.adjTop)
+            b_comp.update(tile.adjBottom)
+        # print(f"current possibles : {current_poss}")
+        # print("current possible sum neighbors are")
+        # print(u_comp, a_comp, l_comp, r_comp, t_comp, b_comp)
+        
+    
+        # compare existing list and possible
+        # leave only those that are possible in output board
+        new_u_poss = set()
+        new_a_poss = set()
+        new_l_poss = set()
+        new_r_poss = set()
+        new_t_poss = set()
+        new_b_poss = set()
+        
+        for u_t in u_poss:
+            if u_t in u_comp: new_u_poss.add(u_t)
+        for a_t in a_poss:
+            if a_t in a_comp: new_a_poss.add(a_t)
+        for l_t in l_poss:
+            if l_t in l_comp: new_l_poss.add(l_t)
+        for r_t in r_poss:
+            if r_t in r_comp: new_r_poss.add(r_t)
+        for t_t in t_poss:
+            if t_t in t_comp: new_t_poss.add(t_t)
+        for b_t in b_poss:
+            if b_t in b_comp: new_b_poss.add(b_t)
+
+        # return changed neighbors
+        reducedNeighbors = []
+        if under!=() and (len(app.outputBoard[under])  != len(new_u_poss)): reducedNeighbors.append(under)
+        if above!=() and (len(app.outputBoard[above])  != len(new_a_poss)): reducedNeighbors.append(above)
+        if left!=()  and (len(app.outputBoard[left])   != len(new_l_poss)): reducedNeighbors.append(left)
+        if right!=() and (len(app.outputBoard[right])  != len(new_r_poss)): reducedNeighbors.append(right)
+        if top!=()   and (len(app.outputBoard[top])    != len(new_t_poss)): reducedNeighbors.append(top)
+        if bottom!=() and(len(app.outputBoard[bottom]) != len(new_b_poss)): reducedNeighbors.append(bottom)
+        # print("reducedNeighbors are")
+        # print(reducedNeighbors)
+
+        # update changed neighbors
+        app.outputBoard[under]  = list(new_u_poss)
+        app.outputBoard[above]  = list(new_a_poss)
+        app.outputBoard[left]   = list(new_l_poss)
+        app.outputBoard[right]  = list(new_r_poss)
+        app.outputBoard[top]    = list(new_t_poss)
+        app.outputBoard[bottom] = list(new_b_poss)
+
+        print(f'We are returning reduced indices {reducedNeighbors}')
+        return reducedNeighbors
+
+
+def getAllNeighbors(app,l,r,c):
+    ''' returns list of coordinate (l,r,c) of 
+        under, above, left, right, top, bottom neighbors
+        blank tuple if wall'''
+    under   = (l-1,r,c) if l>0 else tuple()
+    above   = (l+1, r, c) if l<app.levels-1 else tuple()
+    left    = (l,r-1,c) if r>0 else tuple()
+    right   = (l,r+1,c) if r<app.rows-1 else tuple()
+    top     = (l,r,c-1) if c>0 else tuple()
+    bottom  = (l,r,c+1) if c<app.cols-1 else tuple()
+    
+    return ([under, above, left, right, top, bottom])
+
 
 def main():
     runApp(1200, 600)

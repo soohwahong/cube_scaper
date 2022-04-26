@@ -12,10 +12,14 @@ XYZ = TilePattern("XYZ")
 
 # no rotation allowed!
 
-xFam = list([X, XY, XZ, XYZ])
-yFam = list([Y, XY, YZ, XYZ])
-zFam = list([Z, XZ, YZ, XYZ])
-all  = list([X, Y, Z, XY, XZ, YZ, XYZ])
+xFam = [X, XY, XZ, XYZ]
+yFam = [Y, XY, YZ, XYZ]
+zFam = [Z, XZ, YZ, XYZ]
+all  = [X, Y, Z, XY, XZ, YZ, XYZ]
+allButY = list(set(all) - set(yFam))
+allButX = list(set(all) - set(xFam))
+allButZ = list(set(all) - set(zFam))
+
 
 
 X.map = np.array([
@@ -29,9 +33,9 @@ X.map = np.array([
          [0, 0, 0],
          [0, 0, 0]]
         ])
-X.adjTop,   X.adjBottom = all, all
+X.adjTop,   X.adjBottom = allButY, allButY
 X.adjLeft,  X.adjRight  = xFam, xFam
-X.adjAbove, X.adjUnder  = all, all
+X.adjAbove, X.adjUnder  = allButZ, allButZ
 
 Y.map = np.array([
         [[0, 0, 0],
@@ -45,8 +49,8 @@ Y.map = np.array([
          [0, 0, 0]]
         ])
 Y.adjTop,   Y.adjBottom = yFam, yFam
-Y.adjLeft,  Y.adjRight  = all, all
-Y.adjAbove, Y.adjUnder  = all, all
+Y.adjLeft,  Y.adjRight  = allButX, allButX
+Y.adjAbove, Y.adjUnder  = allButZ, allButZ
 
 Z.map = np.array([
         [[0, 0, 0],
@@ -59,8 +63,8 @@ Z.map = np.array([
          [0, 1, 0],
          [0, 0, 0]]
         ])
-Z.adjTop,   Z.adjBottom = all, all
-Z.adjLeft,  Z.adjRight  = all, all
+Z.adjTop,   Z.adjBottom = allButY, allButY
+Z.adjLeft,  Z.adjRight  = allButX, allButX
 Z.adjAbove, Z.adjUnder  = zFam, zFam
 
 XY.map = np.array([
@@ -77,7 +81,7 @@ XY.map = np.array([
 
 XY.adjTop,   XY.adjBottom = yFam, yFam
 XY.adjLeft,  XY.adjRight  = xFam, xFam
-XY.adjAbove, XY.adjUnder  = all, all
+XY.adjAbove, XY.adjUnder  = allButZ, allButZ
 
 
 XZ.map = np.array([
@@ -92,7 +96,7 @@ XZ.map = np.array([
          [0, 0, 0]]
         ])
 
-XZ.adjTop,   XZ.adjBottom = all, all
+XZ.adjTop,   XZ.adjBottom = allButY, allButY
 XZ.adjLeft,  XZ.adjRight  = xFam, xFam
 XZ.adjAbove, XZ.adjUnder   = zFam, zFam
 
@@ -110,7 +114,7 @@ YZ.map = np.array([
         ])
 
 YZ.adjTop,   YZ.adjBottom = yFam, yFam
-YZ.adjLeft,  YZ.adjRight  = all, all
+YZ.adjLeft,  YZ.adjRight  = allButX, allButX
 YZ.adjAbove, YZ.adjUnder  = zFam, zFam
 
 
@@ -132,5 +136,8 @@ XYZ.adjAbove, XYZ.adjUnder  = zFam, zFam
 
 tileSetB = TileSet("B")
 tileSetB.tiles = [X, Y, Z, XY, XZ, YZ, XYZ] # list of tile objects
+# tileSetB.tiles = [X, Y, Z, XY, XZ, YZ] # list of tile objects
+# tileSetB.tiles = [Y, Z, XZ, YZ] # list of tile objects
+# tileSetB.tiles = [XY, XZ, YZ] # list of tile objects
 
 

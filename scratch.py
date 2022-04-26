@@ -71,6 +71,6 @@ a = None
 # print( a!=None and a.x == 2)
 
 a = np.empty((2,2,2), dtype=object)
-print(a)
-a[:,:,:] = [1,2]
-print(a)
+a[1,0,1] = "wha"
+a[1,1,1] = 'hoo'
+print(np.count_nonzero(a))
