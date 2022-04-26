@@ -144,7 +144,7 @@ def onAppStart(app):
     app.modifiedTileSet = TileSet("mod_tileSetB")
 
     # UI Features
-    app.status = "Hello"
+    app.status = ""
     app.startScreen = True
 
 
@@ -456,6 +456,7 @@ def redrawAll(app):
     drawPossibleTiles(app)
 
     drawStatusBar(app)
+    drawStationaryText(app)
     if app.startScreen:
         drawStartScreen(app)
 
@@ -468,11 +469,27 @@ def drawStartScreen(app):
     
 def drawStatusBar(app):
     # drawLabel(app.status, 40, 30, size=16, font='montserrat', align='left', italic=True)
-    drawLabel(app.status, app.width-30, 30, size=12, font='montserrat', align='right', italic=True)
+    drawLabel(app.status, app.width-30, 30, size=14, font='montserrat', fill='darkOrange', align='right', italic=True)
+    if app.startScreen:
+        drawLabel("Hello", 35, 30, size=16, font='montserrat', align='left')
     if app.pathMode:
         drawLabel("PATH MODE", 35, 30, size=16, font='montserrat', align='left')
     if app.patternMode:
         drawLabel("PATTERN MODE", 35, 30, size=16, font='montserrat', align='left')
+
+def drawStationaryText(app):
+    # board bottom left
+    drawLabel("Return to Home : H", app.gridWin_l+15, app.gridWin_t+app.gridWin_h-15, size=12, fill='gray', font='montserrat', align='left')
+    # board bottom right
+    drawLabel("Clear Board : C", app.gridWin_l+app.gridWin_w-15, app.gridWin_t + app.gridWin_h-30, size=12, fill='gray', font='montserrat', align='right')
+    drawLabel("Rotate Board : → ", app.gridWin_l+app.gridWin_w-15, app.gridWin_t + app.gridWin_h-15, size=12, fill='gray', font='montserrat', align='right')
+    # board top left
+    drawLabel("Rotate Tile : T", app.gridWin_l+15, app.gridWin_t +15, size=12, fill='gray', font='montserrat', align='left')
+    # board top right
+    drawLabel("Toggle Level Guard : L ", app.gridWin_l+app.gridWin_w-15, app.gridWin_t+15, size=12, fill='gray', font='montserrat', align='right')
+    drawLabel("Move Level Guard : ↑ ↓", app.gridWin_l+app.gridWin_w-15, app.gridWin_t+30, size=12, fill='gray', font='montserrat', align='right')
+    # screen bottom left
+
 
 
 
