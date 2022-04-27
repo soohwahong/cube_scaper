@@ -134,6 +134,7 @@ def onAppStart(app):
     app.START = None # cube index of center of home tile 
     app.END = None # cube index of center of dest tile
     app.pathFound = []
+    app.pathMap = np.zeros((app.levels*app.tileSize, app.rows*app.tileSize, app.cols*app.tileSize))
 
     # Pattern Finding with WFC
     app.patternMode = False
@@ -210,24 +211,20 @@ def onKeyPress(app, key):
 
         if key.lower() == 'p':
             res = isPath(app)
+            app.pathFinding = True
             if res == None:
-                app.status = "Path not found. Try selecting a different START and END."
                 print("Path not found!")
             else:
-                app.status = "We found a path!"
                 print("Path found!")
                 print(res)
                 app.pathFound = res 
-            # app.pathFinding = True
-            if key.lower() == 'm':
-                moveThruPath(app)
 
         if key.lower() == 'r':
             clearBoard(app)
-            if app.patternMode:
-                app.tileSet = resetTileSetB() # reset tileSet
-                app.modifiedTileSet.tiles = [] # reset modified tileSet
-                app.foundPattern = False
+            # if app.patternMode:
+            app.tileSet = resetTileSetB() # reset tileSet
+            app.modifiedTileSet.tiles = [] # reset modified tileSet
+            app.foundPattern = False
 
 
         if key.lower() == 'w':
@@ -269,9 +266,10 @@ def clearBoard(app):
     app.START = None
     app.END = None
     app.pathFound = []
+    app.pathMap = np.zeros((app.levels*app.tileSize, app.rows*app.tileSize, app.cols*app.tileSize)) 
     
-    if app.patternMode:
-        initOutputBoard(app)    
+    # if app.patternMode:
+    initOutputBoard(app)    
 
 
 def rotateBoard(app):
@@ -279,7 +277,7 @@ def rotateBoard(app):
         '''
     app.board = np.rot90(app.board, 1, (1,2))
     app.board_rotated = (app.board_rotated+1)%4
-    # print(f'at rotation {app.board_rotated}, board is \n{app.board}')
+    app.pathMap = np.rot90(app.pathMap, 1, (1,2))
     
 
 def onMousePress(app, mouseX, mouseY):
@@ -393,24 +391,24 @@ def isTileLegalOnBoard(app, tile, l, r, c): #used in mousePress, DrawTileOnBoard
     # Checks existing
     if app.board_tiles[l,r,c] != None: return False
 
-    current = tile # moving
-    if app.pathMode:
-        # Checks start and end adjacency
-        # if checkPreviousTile(app, tile,l,r,c) == False : return False
-        # use tilesMeet and getPreviousNeighbors instead of checkPreviousTile
-        previous = getPreviousNeighbors(app, current)
-        # print(f'Current : {current.l, current.r, current.c}, Previous is {previous}')
-        for pl,pr,pc in previous:
-            prev = app.board_tiles[pl,pr,pc]
-            if prev != None:
-                if not TilesMeet(prev, current): return False
+    # current = tile # moving
+    # if app.pathMode:
+    #     # Checks start and end adjacency
+    #     # if checkPreviousTile(app, tile,l,r,c) == False : return False
+    #     # use tilesMeet and getPreviousNeighbors instead of checkPreviousTile
+    #     previous = getPreviousNeighbors(app, current)
+    #     # print(f'Current : {current.l, current.r, current.c}, Previous is {previous}')
+    #     for pl,pr,pc in previous:
+    #         prev = app.board_tiles[pl,pr,pc]
+    #         if prev != None:
+    #             if not TilesMeet(prev, current): return False
 
-        return True
+    #     return True
 
-    if app.patternMode: # pattern mode
-        if tile not in app.outputBoard[(l,r,c)]:
-            return False
-        return True
+    # if app.patternMode: # pattern mode
+    if tile not in app.outputBoard[(l,r,c)]:
+        return False
+    return True
 
 def inPolygon(xq, yq, xv, yv):
         ''' xv, yv are 1d numpy arrays of coordinates that form polygon
@@ -464,14 +462,12 @@ def onStep(app):
     setStatusBar(app)
     if not app.startScreen:
         assert(app.patternMode != app.pathMode)
-        # if app.pathFound:
-        #     moveThroughPath(app)
-        #     app.pathFound = []
 
-def moveThroughPath(app):
+def drawPath(app):
     d = app.cubeDim
-    levels, rows, cols = np.shape(app.board)
-    for cube in app.pathFound:
+    # levels, rows, cols = np.shape(app.board)
+    cubeInds = np.argwhere(app.pathMap == 1)
+    for cube in cubeInds:
         z, x, y = cube
         cx, cy = cubeIndexToPixel(app, z, x, y)
         # cx, cy : pixel coordinate of cube origin (above top)
@@ -491,17 +487,23 @@ def setStatusBar(app):
     # default
     if app.pathMode:
         app.status = "Press S and select and place START tile       Press E and select and place END tile       Press P to generate PATH"
+        if app.settingSTART:
+            app.status = "Select a START tile rotate and drop it on the board"
+        if app.settingEND:
+            app.status = "Select a END tile rotate and drop it on the board"
+        if app.pathFinding:
+            if len(app.pathFound) == 0:
+                app.status = "Path not found. Try drawing again."
+            else: 
+                app.status = "We found a path!"
+            
     if app.patternMode:
         app.status = "Press Z to select tiles       Press W to generate 3d PATTERN"
         if app.foundPattern:
             app.status = "Generated full board!"
-    if app.settingSTART:
-        app.status = "Select a START tile rotate and drop it on the board"
-    if app.settingEND:
-        app.status = "Select a END tile rotate and drop it on the board"
-    if app.selectTileSet:
-        app.status = "Click on tiles to add to your set     Press Z when done adding"
-
+        if app.selectTileSet:
+            app.status = "Click on tiles to add to your set     Press Z when done adding"
+    
 ## Draw
 def redrawAll(app):
     
@@ -516,7 +518,7 @@ def redrawAll(app):
     drawStatusBar(app)
     drawStationaryText(app)
     if app.pathFound:
-        moveThroughPath(app)
+        drawPath(app)
     if app.startScreen:
         drawStartScreen(app)
 
@@ -630,18 +632,6 @@ def drawTileOnCanvas(app, tile, px, py):
             if x==rows-1 or tile.map[z, x+1, y] != 1:
                 drawPolygon(*tb, *tr, *br, *bb, border='white', borderWidth=0.3, fill='black') # draw right front
 
-        # if app.pathMode:
-        #     # indicate start and end constraint
-        #     # print(f'{tile.start, tile.end}')
-        #     startCube = app.tileSet.constraintDict[tile.start]
-        #     endCube = app.tileSet.constraintDict[tile.end]
-        #     # print(f'{tile.name, startCube, endCube}')
-        #     if tile.start != 0:
-        #         if (z,x,y) == startCube:
-        #             drawCircle(int(cx),int(cy), 3, fill='green') # start has green dot on above left corner
-        #     if tile.end != 0:
-        #         if (z,x,y) == endCube:
-        #             drawCircle(int(cx),int(cy), 3, fill='red') # end has red dot on top right corner
 
 def drawTileSet(app):
     ''' Draws tile set on left side of page'''
@@ -729,10 +719,10 @@ def placeTileOnBoard(app, tile, l, r, c):
     tile.px, tile.py = -1, -1 # clearing values if any
 
     # in Pattern Mode reduce outcome board 
-    if app.patternMode:
-        # reduce outcomeboard of neghbors and propogate through entire grid
-        app.outputBoard[(l,r,c)] = [tile]
-        reduceNeighbors(app, l, r, c)
+    # if app.patternMode:
+    # reduce outcomeboard of neghbors and propogate through entire grid
+    app.outputBoard[(l,r,c)] = [tile]
+    reduceNeighbors(app, l, r, c)
 
 
 
@@ -813,11 +803,11 @@ def drawBoard(app):
 
 def drawPossibleTiles(app):    
     # in pattern mode, label possible tile for each tile on level guide
-    if app.patternMode:
-        for r in range(app.rows):
-            for c in range(app.cols):
-                tx,ty = tileIndexToPixel(app,app.currentLevel,r,c)
-                drawLabel(f'{app.outputBoard[(app.currentLevel,r,c)]}', tx, ty+15, size=7, fill='gray')
+    # if app.patternMode:
+    for r in range(app.rows):
+        for c in range(app.cols):
+            tx,ty = tileIndexToPixel(app,app.currentLevel,r,c)
+            drawLabel(f'{app.outputBoard[(app.currentLevel,r,c)]}', tx, ty+15, size=7, fill='gray')
 
 
 
@@ -870,7 +860,11 @@ def isPath(app):
         If there exists path between START and END, returns cube unit path
         Else returns None
         User manually places tile on board and checks '''
-    return isPathHelper(app, app.START, 0, [app.START])
+    res = isPathHelper(app, app.START, 0, [app.START])
+    if res != None:
+        for cube in res:
+            app.pathMap[cube] = 1
+    return res
 
 def isPathHelper(app, current, depth, path):
     '''if path is found, returns path (sequence of cube indices)'''
